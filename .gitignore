@@ -1,3 +1,14 @@
 mvarl_hands_on
 **/*.ipynb_checkpoints
 gym-results
+
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.log
+*.out
+*.xml
+*.thm
+*.gz
+
