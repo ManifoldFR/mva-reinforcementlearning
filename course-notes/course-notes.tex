@@ -586,7 +586,7 @@ The value update step in \cref{algo:BaseActorCritic} can also be re-cast as a su
 	\calL(\omega; \tau) =
 	\sum_{t=0}^T (G_{t:t+1} - \widehat{q}_\omega(s_t,a_t))^2
 \]
-We then perform a semi-gradient update step, taking the gradient with respect to $\omega$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it (formally, we would be \textit{detaching} $G_{t:t+1}$ from the computational graph). This is called \textbf{one-step actor-critic}. It does not have high sample efficiency.
+We then perform a semi-gradient update step, taking the gradient with respect to $\omega$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it (formally, we would be \textit{detaching} $G_{t:t+1}$ from the computational graph). This is called \textbf{one-step actor-critic}. It does not have high sample efficiency because the return estimates ignore the (actual) future rewards and we often end up bootstrapping too much.
 
 
 \subsection{Actor-critic with baselines: Advantage Actor-Critic (A2C)}
