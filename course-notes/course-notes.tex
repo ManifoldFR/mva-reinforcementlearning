@@ -76,7 +76,7 @@
 \colorlet{lightblue}{RoyalBlue!20}
 \colorlet{midblue}{RoyalBlue!72}
 \colorlet{midgreen}{OliveGreen!65}
-\colorlet{darkred}{Red!75!black}
+\colorlet{darkred}{BrickRed}
 
 \newcommand{\redfont}{\color{darkred}}
 \newcommand{\bluefont}{\color{Blue}}
@@ -143,7 +143,7 @@ The value function is a staple from the literature on dynamic programming, wheth
 
 \begin{defn}[Value function]
 The value function $V^\pi\colon \calS \to \RR$ of a policy $\pi$ is the expectation of the cumulative (discounted) future rewards starting from a point $s_0 = s$
-\begin{equation}
+\begin{equation}\label{eq:ValueFunctionDefn}
 	V^\pi(s) \coloneqq
 	\EE_{\tau\sim\pi}\left[
 	\sum_{t=0}^T \gamma^t r(s_t, a_t)
@@ -169,8 +169,36 @@ With generalizations:
 \begin{itemize}
 	\item for stochastic policies $\pi\colon \calS\times\calA \to \RR_+$, the sum becomes $\sum_{s'\in\calS} \sum_{a\in\calA} \pi(s,a) p(s,a,s')V^\pi(s')$
 	\item non-discrete state space, the sum can be replaced by an integral with respect to a measure $p(s,\pi(s),\der s')$ -- see Sutton's book \cite{Sutton1998}
-	\item for a transition reward $r(s,a,s')$, we introduce $r(s,a) = \sum_{s'\in\calS}r(s,a,s')$.
+	\item if the rewards are given for transitions as $r(s,a,s')$, we introduce $r(s,a) = \sum_{s'\in\calS}r(s,a,s')$.
 \end{itemize}
+
+
+\begin{remark}[Notational abuse]
+	Often, we will write the value functon at a state $s_t$, where it is implied we are at the $t$-th step in a trajectory, as
+	\[
+		V(s_t) = \EE_{\tau\sim\pi}\left[
+		\sum_{{\redfont t'=t}}^T \gamma^{{\redfont t'-t}} r(s_{t'}, a_{t'})
+		\scalemid s_t
+		\right]
+	\]
+	This is coherent with the notion of cumulative (discounted) future rewards which defined the value function \eqref{eq:ValueFunctionDefn}, but not with the notation; a more correct notation would be to write $V(t, s_t)$ and make the dependence on the starting time $t$ of the discounting explicit.
+\end{remark}
+
+\subsection{The optimal value function}
+
+Solving a Markov Decision Process involves finding the \textbf{\bluefont optimal} policy $\pi^*$ that will maximize the expected rewards when starting at a point $s_0$.
+
+\begin{defn}[Optimal policy and value function]
+	Given a set of policies $\Pi$, an optimal policy $\pi^*$.
+	
+	The associated optimal value function is
+	\[
+		V^* \coloneqq V^{\pi^*}
+	\]
+\end{defn}
+
+
+\subsection{The Value Iteration algorithm}
 
 
 \section{The $\boldsymbol{Q}$-function}
@@ -185,9 +213,23 @@ With generalizations:
 	\sum_{t=0}^T \gamma^t r(s_t, a_t) \scalemid s_0 = s, a_0 = a
 	\right]
 	\end{equation}
-	where the trajectory $\tau$ is generated under the decision rule $d^\pi$.
+	where the trajectory $\tau$ is generated under the policy $\pi$.
 	The horizon $T$ of the problem can be finite or infinite ($T$ can be a stopping time).
 \end{defn}
+
+
+
+The state-action value function $Q^\pi$ has an obvious link to the value function $V^\pi$.
+
+\begin{prop}
+	For any state $s\in\calS$, it holds that
+	\begin{equation}
+	V^\pi(s) = \EE_{a\sim \pi(s,\cdot)}\left[
+	Q^\pi(s, a)
+	\right]
+	\end{equation}
+\end{prop}
+
 
 
 \section{Temporal-difference estimation -- $\mathsf{TD}(0)$}
@@ -215,6 +257,8 @@ J(\pi) = \EE_{\tau\sim\pi}\left[
 	\left[R(\tau)\right]
 \end{equation}
 where $\tau = \left\{ s_1,a_1,r_1,\ldots,s_{T-1},a_{T-1},r_{T-1},s_{T}\right\}$ and $R(\tau) = \sum_{t=0}^T \gamma^t r_t$.
+
+We use the shorthand $r_t$ for the reward $r(s_t, a_t)$ -- or more generally a transition reward $r(s_t, a_t, s_{t+1})$ or stochastic reward distributed as $r_t \sim p(\cdot, s_t, a_t, s_{t+1})$.
 
 We seek to compute the maximizing policy in a parametric search space $\{\pi_\theta: \theta\in\Theta\}$:
 \[
@@ -307,7 +351,7 @@ which leads to the policy gradient estimate
 	{\redfont\hat{q}^i_t}
 	\nabla_\theta \log\pi_\theta (s_t^i, a_t^i)
 \end{equation}
-where\footnote{This quantity can be seen as an estimate of the state-action value function $Q^\pi(s_t, a_t) = \EE[\sum_{t'=t}^T \gamma^{t'-t} r_{t'} \mid s_{t}, a_{t} ]$.} $\hat{q}^i_t = \sum_{t'=t}^T \gamma^{t'-t}r_{t'}$.
+where\footnote{$\hat{q}^i_t$ can be seen as an estimate of the $Q$-function $Q^\pi(s_t, a_t) = \EE[\sum_{t'=t}^T \gamma^{t'-t} r_{t'} \mid s_{t}, a_{t} ]$.} $\hat{q}^i_t = \sum_{t'=t}^T \gamma^{t'-t}r_{t'}$.
 \end{prop}
 
 
@@ -317,7 +361,7 @@ Given any \textbf{\bluefont baseline} function $b\colon \calS \to \RR$, we can r
 	\EE_\pi \left[
 	\sum_{t=0}^T
 	\left(
-		\sum_{t'=t}^T \gamma^{t'} r_{t'} - b(s_t)
+		\sum_{t'=t}^T \gamma^{t'} r_{t'} - {\redfont b(s_t)}
 	\right)
 	\nabla_\theta \log\pi_\theta(s_t, a_t)
 	\right]
@@ -328,18 +372,31 @@ The resulting policy gradient estimate we get is
 	\frac{1}{M}\sum_{i=1}^M
 	\sum_{t=0}^{T_i}
 	\left(
-		\hat{q}^i_t - b(s^i_t)
+		\hat{q}^i_t - {\redfont b(s^i_t)}
 	\right)
 	\nabla_\theta \log\pi_\theta (s_t^i, a_t^i)
 \end{equation}
 which is an unbiased estimate.
 
-It can be shown that the best baseline $b^*$ is the value function:
+It can be shown that the ``best" baseline in terms of variance reduction $b^*$ is the value function:
 \[
-	b^*(t_0, s) = \EE_\pi\left[\sum_{t=t_0}^T \gamma^{t-t_0} r_t \scalemid s_{t_0} = s\right]
+	b^*(s_t) = \EE_\pi\left[\sum_{t'=t}^T \gamma^{t'-t} r_{t'} \scalemid s_t \right]
 \]
-\ldots which we are trying to approximate. This suggests that we use some kind of \textbf{bootstrap} estimate for the baseline.
+\ldots which we are already trying to approximate. This suggests that we use some kind of \textbf{bootstrap} estimate for the baseline.
 
+An obvious baseline is Monte Carlo estimation:
+\[
+	\hat{b}_t =
+	\frac{1}{M}\sum_{i=1}^M \hat{q}^i_t
+\]
+This is an unbiased estimate, as the expectation of the $Q$-function estimate under the policy $\pi_\theta$
+\[
+	\EE_{a_t^i\sim \pi_\theta(s_t^i,\cdot)}\left[\hat{q}^i_t\right] =
+	\EE_{a_t\sim\pi_\theta(s_t,\cdot)}
+	\left[
+	\sum_{t'=t}^T \gamma^{t'-t}r_{t'}\scalemid s_t
+	\right] = V^\pi(s_t)
+\]
 
 
 \subsection{Parametric Bootstrapping of the baseline}
@@ -371,14 +428,16 @@ The class of actor-critic methods introduces a second search space for approxima
 
 
 The policy learning is still done by gradient ascent following a policy gradient estimate of the form \cref{eq:MCPolicyGradBaseline} -- but this time, we replace the Monte Carlo estimate $\hat{q}^i_t$ of the $Q$-function by a parametric estimator $\hat{q}_\omega(s_t, a_t)$
-\[
+\begin{equation}\label{eq:ActorPolicyGrad}
 	\widehat{\nabla_\theta J}(\pi_\theta) =
 	\frac{1}{M}\sum_{i=1}^M
 	\sum_{t=0}^{T_i} \hat{q}_\omega(s^i_t,a^i_t)
 	\nabla_\theta \log\pi_\theta(s^i_t, a^i_t)
-\]
+\end{equation}
 
 \subsection{Actor-critic with baselines: advantage}
+
+As we've seen before, a good baseline to introduce in the policy gradient \eqref{eq:PolicyGradient} is the value function.
 
 
 
