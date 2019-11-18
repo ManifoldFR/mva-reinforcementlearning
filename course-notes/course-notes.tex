@@ -394,9 +394,9 @@ In an automatic differentiation framework such as {\normalfont\sffamily PyTorch}
 \end{equation}
 \end{remark}
 
-We will simulate multiple trajectories (\textit{episodes}) to perform the gradient update: this is the similar to what is done with batch, mini-batch or stochastic gradient steps.
+We will simulate multiple trajectories (\textit{episodes}) to perform the gradient update: this is the similar to what is done with batch, mini-batch or stochastic gradient steps. This leads to \cref{algo:REINFORCEbasic}.
 
-\begin{algorithm}
+\begin{algorithm}[H]
 \caption{Monte Carlo Policy Gradient (REINFORCE)}\label{algo:REINFORCEbasic}
 \KwIn{Arbitrary initial policy $\pi_{\theta_0}$.}
 \KwOut{Optimal parametric policy $\pi_{\theta^*}$.}
@@ -407,7 +407,7 @@ We will simulate multiple trajectories (\textit{episodes}) to perform the gradie
 }
 \end{algorithm}
 
-This algorithm can be modified in several ways, by performing the gradient step at every time in the process, or on the entire batch of trajectories.
+This algorithm can be modified in several ways, by performing the gradient step at every time in the process, or on the entire batch of trajectories. \textcite{Sutton1998} actually use the more fine-grained update scheme wherein the parameter $\theta$ is updated at each step $t$ of every episode.
 
 \subsection{Variance reduction: temporal structure and baselines}
 
@@ -496,7 +496,7 @@ This baseline is an unbiased estimate: following \cref{prop:ValueFunctionExpecta
 \]
 
 
-\subsection{Parametric Bootstrapping of the baseline}
+\subsection{Parametric Bootstrapping of the baseline}\label{sec:REINFORCEparametricBaseline}
 
 We define the bootstrap estimate $b(s) \coloneqq \widehat{v}_\nu(s)$ lying in a parametric search space $\{\widehat{v}_\nu : \nu \in \mathcal{V}\}$. The value parameter can be iteratively updated using gradient steps alternatively with the policy parameter $\theta$.
 
@@ -536,10 +536,9 @@ The difference between the returns and the value approximation $G_t - \widehat{v
 \section{Parametric approximation: Actor-Critic algorithms}
 
 
-\paragraph{The idea} The enhanced REINFORCE algorithm builds estimates of the $Q$-function to compute the policy gradient as it runs: this is computationally expensive and may lead to high variance. To combat this, it might be a good idea to \textit{learn} from the $Q$-function estimates in a way that gives a consistent estimate that follows the policy gradient updates.
+\paragraph{The idea} The enhanced REINFORCE algorithm builds estimates of the value function to compute the policy gradient: this is computationally expensive and may still lead to high variance. To combat this, it might be a good idea to \textit{learn} from the Monte Carlo estimates in a way that gives a consistent estimate that follows the policy gradient updates.
 
-To achieve this, the class of \textbf{\bluefont actor-critic methods} introduces a second search space for approximation of the state(-action) value function.
-
+To achieve this, the class of \textbf{\bluefont actor-critic methods} introduces a second search space for approximation of the state(-action) value function and bootstrapped temporal-difference estimates for the returns. The supervised baseline of \cref{sec:REINFORCEparametricBaseline} was already a first step towards this -- the subtle difference is further explained in \cite[chap.\ 13.5]{Sutton1998}.
 
 \subsection{Actor-Critic}
 
@@ -581,12 +580,12 @@ where the advantage estimations $\delta_t$ must be detached from the graph.
 \end{remark}
 
 
-The value update step in \cref{algo:BaseActorCritic} can also be re-cast as a supervised regression step, where we fit the (bootstrapped) returns $G_{t:t+1} = r_t + \widehat{q}_\omega(s_{t+1},a_{t+1})$ to the value model predictions $\widehat{q}_\omega(s_t,a_t)$, with a mean-squared loss
+The value update step in \cref{algo:BaseActorCritic} can also be re-cast as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t:t+1}} = r_t + \widehat{q}_\omega(s_{t+1},a_{t+1})$ to the value model predictions $\widehat{q}_\omega(s_t,a_t)$, with a mean-squared loss
 \[
 	\calL(\omega; \tau) =
-	\sum_{t=0}^T (G_{t:t+1} - \widehat{q}_\omega(s_t,a_t))^2
+	\sum_{t=0}^T ({\redfont G_{t:t+1}} - \widehat{q}_{\omega}(s_t,a_t))^2
 \]
-We then perform a semi-gradient update step, taking the gradient with respect to $\omega$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it (formally, we would be \textit{detaching} $G_{t:t+1}$ from the computational graph). This is called \textbf{one-step actor-critic}. It does not have high sample efficiency because the return estimates ignore the (actual) future rewards and we often end up bootstrapping too much.
+We then perform a semi-gradient update step, taking the gradient with respect to $\omega$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it (formally, we would be \textit{detaching} $G_{t:t+1}$ from the computational graph). We create this estimate by only looking at the immediate reward and bootstrapping the rest of the value: this is called \textbf{one-step actor-critic}. It does not have high sample efficiency because the return estimates ignore the (actual) future rewards and we often end up bootstrapping too much.
 
 
 \subsection{Actor-critic with baselines: Advantage Actor-Critic (A2C)}
@@ -597,7 +596,16 @@ The coefficient before the log-probability gradient becomes an estimate of $Q^\p
 \[
 	A^\pi(s,a) = Q^\pi(s,a) - V^\pi(s).
 \]
+An unbiased estimate of $A^\pi$ is the temporal difference error of the value function
+\[
+	\delta_t^V = r_t + \gamma V^\pi(s_{t+1}) - V^\pi(s_t).
+\]
+This can be seen by taking the expectation with respect to $s_{t+1}$ conditionally on $(s_t,a_t)$.
 
+This leads to the (bootstrapped) estimate, using a parametric approximation $\widehat{v}_\nu$ of the state value function
+\[
+	\widehat{\delta}_t = r_t + \gamma\widehat{v}_\nu(s_{t+1}) - \widehat{v}_\nu(s_t)
+\]
 
 
 \nocite{*}
