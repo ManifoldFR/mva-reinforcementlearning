@@ -1,8 +1,8 @@
 \documentclass[../course-notes.tex]{subfiles}
 
+
+
 \begin{document}
-
-
 
 \chapter{Approximate solving of Markov Decision Processes with Policy Gradients}
 
@@ -294,9 +294,9 @@ This can be seen by taking the expectation with respect to $s_{t+1}$ conditional
 
 This leads to the (bootstrapped) estimate, using a parametric approximation $\widehat{v}_\nu$ of the state value function:
 \[
-\widehat{\delta}_t = r_t + \gamma\widehat{v}_\nu(s_{t+1}) - \widehat{v}_\nu(s_t).
+	\widehat{\delta}_t = r_t + \gamma\widehat{v}_\nu(s_{t+1}) - \widehat{v}_\nu(s_t).
 \]
-Now, we have no need to learn a action-state critic $\widehat{q}_\omega(s,a)$, since we have TD error estimates that can be expressed only using $\widehat{v}_\nu(s)$ -- which is simpler.
+Now, we have no need to learn a action-state critic $\widehat{q}_\omega$, since we have TD error estimates that can be expressed only using $\widehat{v}_\nu(s)$ -- which is simpler.
 
 The A2C algorithm is as follows:
 
@@ -309,37 +309,85 @@ The A2C algorithm is as follows:
 		\ForEach{$t=0,\ldots,T$}{
 			$\delta_t \leftarrow r_t + \gamma \widehat{v}_\nu(s_{t+1}) - \widehat{v}_\nu(s_t)$ \tcp*{$\TD(0)$ error}
 		}
-		$\nu \leftarrow \nu + \beta \sum_{t=0}^T\delta_t \nabla_\nu \widehat{v}_\nu (s_t)$\;
-		$\theta \leftarrow \theta + \alpha \sum_{t=0}^T \widehat{v}_\nu(s_t) \nabla_\theta \log\pi_\theta(s_t, a_t)$\;
+		$\nu \leftarrow \nu + \beta \sum_{t=0}^T\delta_t \nabla_\nu \widehat{v}_\nu (s_t)$ \tcp*{critic update}
+		$\theta \leftarrow \theta + \alpha \sum_{t=0}^T \widehat{v}_\nu(s_t) \nabla_\theta \log\pi_\theta(s_t, a_t)$ \tcp*{actor update}
 	}
 \end{algorithm}
 
 
-\begin{remark}
+\begin{remark}\label{rmk:A2CAutoDiff}
 	To leverage automatic differentiation, appropriate pseudo-losses to define a computational graph for the updates in \cref{algo:AdvantageActorCritic} are
 	\begin{subequations}
-		\begin{align}
-		\tilde{C}(\omega) &= \frac{1}{M}\sum_{i=1}^M
-		\sum_{t=0}^T\delta^i_t  \widehat{v}_\nu(s^i_t)  \\
-		\tilde{J}(\theta) &=
-		\frac{1}{M}\sum_{i=1}^M
-		\sum_{t=0}^T \widehat{v}_\nu(s^i_t) \log\pi_\theta(s^i_t,a^i_t)
-		\end{align}
+	\begin{align}
+	\tilde{C}(\nu) &= \frac{1}{M}\sum_{i=1}^M
+	\sum_{t=0}^T\delta^i_t  \widehat{v}_\nu(s^i_t)  \\
+	\tilde{J}(\theta) &=
+	\frac{1}{M}\sum_{i=1}^M
+	\sum_{t=0}^T \widehat{v}_\nu(s^i_t) \log\pi_\theta(s^i_t,a^i_t)
+	\end{align}
 	\end{subequations}
 	where the temporal-difference estimates $\delta^i_t$ must be detached from the graph.
 \end{remark}
 
 
-The value update step in \cref{algo:AdvantageActorCritic} can be seen as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t:t+1}} = r_t + \widehat{v}_\nu(s_{t+1})$ to the value model predictions $\widehat{v}_\nu(s_t)$, with a mean-squared loss
+The value update step in \cref{algo:AdvantageActorCritic} (and also \cref{algo:BaseActorCritic}) can be seen as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t:t+1}} = r_t + \widehat{v}_\nu(s_{t+1})$ to the value model predictions $\widehat{v}_\nu(s_t)$, with a mean-squared loss
 \[
-\calL(\omega; \tau) =
-\sum_{t=0}^T ({\redfont G_{t:t+1}} - \widehat{v}_{\nu}(s_t))^2
+	\calL(\nu) =
+	\sum_{t=0}^T ({\redfont G_{t:t+1}} - \widehat{v}_{\nu}(s_t))^2
 \]
-We then perform a semi-gradient update step, taking the gradient with respect to $\omega$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it.
+We then perform a semi-gradient update step, taking the gradient with respect to $\nu$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it.
+
+\begin{remark}
+This means that the pseudo-loss $\tilde{C}(\nu)$ in \cref{rmk:A2CAutoDiff} can be replaced by the MSE $\calL(\nu)$.
+\end{remark}
+
 
 We create the estimate $G_{t:t+1}$ by only looking at the immediate reward and bootstrapping the rest of the value: this is called \textbf{one-step actor-critic}. It has poor sample efficiency: the return estimates ignore most of the (actual) future rewards and end up bootstrapping too much. However, it naturally allows for \textit{online learning}.	
 
 This can be easily generalized to using more rewards for bootstrapping the returns: \textbf{$n$-step actor-critic} methods look further ahead and use estimates $G_{t:t+n} = \sum_{k=0}^{n-1}\gamma^k r_{t+k} + \gamma^n \widehat{v}_\nu(s_{t+n})$.
+
+
+\paragraph{Batch actor-critic} In batch algorithms, we switch out episodic simulation with epochs of simulation-and-reset batches, where we simulate trajectories (and reset them at terminal states) until a fixed number $B$ of updates have been done.
+
+\begin{algorithm}[H]
+\caption{Batch A2C}\label{algo:BatchA2C}
+\SetKwFunction{EnvReset}{Reset}
+\KwIn{Number of epochs $N$, batch size $B$}
+\ForEach{$n=1,\ldots,N$}{
+	$s_0 \leftarrow \EnvReset()$\;
+	\ForEach{$i=0,\ldots,B-1$}{
+		$v_i \leftarrow \widehat{v}_\nu(s_i)$ \tcp*{estimate value}
+		Draw action $a_i\sim \pi_\theta$\;
+		Get state, reward $(s_{i+1},r_i)$\;
+		\tcp{check if we just finished a trajectory}
+		\If{$s_{i+1}$ is terminal}{
+			$s_{i+1} \leftarrow \EnvReset()$\;
+		}
+	}
+	\eIf{$s_{B}$ is terminal}{
+		$v_B \leftarrow 0$\;
+	}
+	{
+		$v_B \leftarrow \widehat{v}_\nu(s_B)$\;
+	}
+	Compute bootstrapped advantages, returns $(\delta_i, \widehat{G}_i)$\;
+	$\nu \leftarrow \nu +\beta\sum_{i=0}^{B-1} \delta_i\nabla_\nu\widehat{v}_\nu(s_i)$\;
+	$\theta \leftarrow \theta +\alpha \sum_{i=0}^{B-1} \delta_i \nabla_\theta \log\pi_\theta(s_i, a_i)$\;
+}
+\end{algorithm}
+
+The returns $\widehat{G}_i$ have to be computed taking into account when trajectories end.
+An efficient algorithm is
+\[
+	\widehat{G}_i =
+	\begin{cases}
+	r_i + \gamma \widehat{G}_{i+1}& \text{ if } s_i \text{ is not terminal} \\
+	r_i & \text{ otherwise}
+	\end{cases}
+\]
+for $i=0,\ldots,B-2$ and $G_{B-1} = r_{B-1} + \gamma v_B$. The $\TD(0)$ errors are $\delta_i = \widehat{G}_i - v_i$.
+
+
 
 
 \end{document}
