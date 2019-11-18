@@ -3,3 +3,4 @@ mvarl_hands_on/data/CartPole_actor.pt filter=lfs diff=lfs merge=lfs -text
 saved_models/reinforce_12112019-151110.pth filter=lfs diff=lfs merge=lfs -text
 gym-CartPole-REINFORCE_12112019-151251.mp4 filter=lfs diff=lfs merge=lfs -text
 gym-results/openaigym.video.1.13230.video000000.mp4 filter=lfs diff=lfs merge=lfs -text
+course-notes/course-notes.pdf filter=lfs diff=lfs merge=lfs -text
