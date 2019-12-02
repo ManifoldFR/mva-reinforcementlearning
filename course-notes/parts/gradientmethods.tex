@@ -330,7 +330,7 @@ The A2C algorithm is as follows:
 \end{remark}
 
 
-The value update step in \cref{algo:AdvantageActorCritic} (and also \cref{algo:BaseActorCritic}) can be seen as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t:t+1}} = r_t + \widehat{v}_\nu(s_{t+1})$ to the value model predictions $\widehat{v}_\nu(s_t)$, with a mean-squared loss
+The value update step in \cref{algo:AdvantageActorCritic} (and also \cref{algo:BaseActorCritic}) can be seen as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t:t+1}} = r_t + \gamma\widehat{v}_\nu(s_{t+1})$ to the value model predictions $\widehat{v}_\nu(s_t)$, with a mean-squared loss
 \[
 	\calL(\nu) =
 	\sum_{t=0}^T ({\redfont G_{t:t+1}} - \widehat{v}_{\nu}(s_t))^2
@@ -344,7 +344,11 @@ This means that the pseudo-loss $\tilde{C}(\nu)$ in \cref{rmk:A2CAutoDiff} can b
 
 We create the estimate $G_{t:t+1}$ by only looking at the immediate reward and bootstrapping the rest of the value: this is called \textbf{one-step actor-critic}. It has poor sample efficiency: the return estimates ignore most of the (actual) future rewards and end up bootstrapping too much. However, it naturally allows for \textit{online learning}.	
 
-This can be easily generalized to using more rewards for bootstrapping the returns: \textbf{$n$-step actor-critic} methods look further ahead and use estimates $G_{t:t+n} = \sum_{k=0}^{n-1}\gamma^k r_{t+k} + \gamma^n \widehat{v}_\nu(s_{t+n})$.
+This can be easily generalized to using more rewards for bootstrapping the returns: \textbf{$n$-step actor-critic} methods look further ahead and use estimates 
+\[
+	{\redfont G_{t:t+n}}
+	= \sum_{k=0}^{n-1}\gamma^k r_{t+k} + \gamma^n \widehat{v}_\nu(s_{t+n})
+\]
 
 
 \paragraph{Batch actor-critic} In batch algorithms, we switch out episodic simulation with epochs of simulation-and-reset batches, where we simulate trajectories (and reset them at terminal states) until a fixed number $B$ of updates have been done.
