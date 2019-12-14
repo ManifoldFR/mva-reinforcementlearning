@@ -2,6 +2,8 @@ mvarl_hands_on
 **/*.ipynb_checkpoints
 gym-results
 
+*.npy
+
 *.aux
 *.bbl
 *.bcf
@@ -10,5 +12,6 @@ gym-results
 *.out
 *.xml
 *.thm
+*.toc
 *.gz
 

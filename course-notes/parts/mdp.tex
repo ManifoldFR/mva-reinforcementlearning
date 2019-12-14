@@ -1,0 +1,34 @@
+\documentclass[../course-notes.tex]{subfiles}
+
+\begin{document}
+
+\chapter{Markov Decision Processes}
+
+
+\begin{defn}[Markov Decision process]
+	A \emph{Markov decision process} (MDP) is given by its state space $\calS$, action space $\calA$, state dynamics, reward structure and discount factor. In a MDP, the state dynamics can be written as
+	\[
+		\PP(s_{t+1} \mid s_t, a_t)
+	\]
+\end{defn}
+
+The \textbf{\bluefont return} of a trajectory $(s_0,a_0,r_0,s_1,\ldots)$ at time $t$ is defined as
+\begin{equation}
+	G_t = \sum_{k} \gamma^k r_{t+k}
+\end{equation}
+
+
+
+\section{Decision rules, Policies}
+
+The idea of a \textit{decision rule} is to choose which action (or actions, with a given preference) to take after observing part of an MDP's trajectory.
+
+
+
+
+
+
+
+
+
+\end{document}
