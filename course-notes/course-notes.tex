@@ -1,7 +1,7 @@
 % !TeX spellcheck = en_US
 \documentclass[12pt]{report}
 
-\usepackage[a4paper,hmargin=3cm,vmargin=2.6cm]{geometry}
+\usepackage[a4paper,hmargin=1.8cm,vmargin=2.2cm]{geometry}
 \usepackage{subfiles}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{mathtools}
@@ -20,6 +20,10 @@
 \usepackage{booktabs}
 \usepackage{subcaption}
 \usepackage{titlesec}
+
+\usepackage{enumitem}
+
+\setlist{itemsep=-2pt,topsep=2pt}
 
 \usepackage[backend=biber,sorting=nyt]{biblatex}
 
@@ -69,22 +73,25 @@
 
 %%% Section titling setup %%%
 
+%\titleformat{command}[shape]{format}{label}{sep}{before-code}[after-code]
 \titleformat{\chapter}[display]
-	{\normalfont\sffamily\huge\bfseries}
-	{\chaptertitlename\ \thechapter}{20pt}{\Huge}
+	{\sffamily\huge\bfseries}
+	{\chaptertitlename\ \thechapter}
+	{20pt}{\huge}
 \titleformat*{\section}{\Large\bfseries\sffamily}
 \titleformat*{\subsection}{\large\bfseries\sffamily}
+\titleformat{\subsubsection}[hang]{\sffamily\bfseries}{}{}{}
 \titleformat{\paragraph}[runin]{\sffamily\bfseries}{}{}{}[.]
 
 %%% Colors %%%
 
-\colorlet{lightblue}{RoyalBlue!20}
+\colorlet{lightblue}{RoyalBlue!14}
 \colorlet{midblue}{RoyalBlue!72}
 \colorlet{midgreen}{OliveGreen!65}
 \colorlet{darkred}{Red!90!Black}
 
 \newcommand{\redfont}{\color{darkred}}
-\newcommand{\bluefont}{\color{Blue}}
+\newcommand{\bluefont}{\color{RoyalBlue}}
 
 
 %%% Theorem Environments %%%

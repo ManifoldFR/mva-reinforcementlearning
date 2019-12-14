@@ -4,6 +4,8 @@ gym-results
 
 *.npy
 
+*.csv
+
 *.aux
 *.bbl
 *.bcf

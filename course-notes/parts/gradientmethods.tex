@@ -100,7 +100,7 @@ We will simulate multiple trajectories (\textit{episodes}) to perform the gradie
 	\Repeat{finished}{
 		Simulate a trajectory $\tau$\;
 		$\boldsymbol{g} \leftarrow (\sum_{t=0}^T \gamma^t r_t)\sum_{t=0}^T \nabla_\theta \log\pi_\theta(s_t, a_t)$\tcp*{policy gradient}
-		$\theta \leftarrow \theta + \alpha\boldsymbol{g}$\;
+		$\theta \leftarrow \theta + \alpha\boldsymbol{g}$\tcp*{update parameter}
 	}
 \end{algorithm}
 
@@ -362,7 +362,7 @@ This can be easily generalized to using more rewards for bootstrapping the retur
 	\ForEach{$i=0,\ldots,B-1$}{
 		$v_i \leftarrow \widehat{v}_\nu(s_i)$ \tcp*{estimate value}
 		Draw action $a_i\sim \pi_\theta$\;
-		Get state, reward $(s_{i+1},r_i)$\;
+		Get state, reward $(r_i, s_{i+1})$\;
 		\tcp{check if we just finished a trajectory}
 		\If{$s_{i+1}$ is terminal}{
 			$s_{i+1} \leftarrow \EnvReset()$\;

@@ -3,7 +3,7 @@
 \begin{document}
 
 
-\chapter{Value functions, Dynamic programming}
+\chapter{Value functions, Dynamic programming}\label{chap:DP}
 
 
 \section{The value function}
@@ -133,8 +133,8 @@ Then, we have that the optimal value function satisfies the equation
 
 
 
-\begin{defn}[State-action value function]
-	The \textit{state-action value function} of a policy $\pi$ is the function $Q^\pi\colon \calS\times\calA\to \RR$ is defined by
+\begin{defn}[action-state value function]
+	The \textit{action-state value function} of a policy $\pi$ is the function $Q^\pi\colon \calS\times\calA\to \RR$ is defined by
 	\begin{equation}
 	Q^\pi(s, a) \coloneqq \EE_{\tau\sim \pi}
 	\left[
@@ -147,7 +147,7 @@ Then, we have that the optimal value function satisfies the equation
 
 
 
-The state-action value function $Q^\pi$ has an obvious link to the value function $V^\pi$.
+The action-state value function $Q^\pi$ has an obvious link to the value function $V^\pi$.
 For any state $s\in\calS$, it holds that
 \begin{equation}\label{eq:ValueFunctionExpectationLink}
 	V^\pi(s) = \EE_{a\sim \pi(s,\cdot)}\left[
@@ -174,10 +174,10 @@ The action-state value function has its own \textbf{\bluefont Bellman equation}:
 \end{equation}
 
 
-\subsection{Optimal $Q$-function}
+\subsection{The optimal $Q$-function}
 
 \begin{defn}[Optimal action value function]
-	Optimal policies as defined in \cref{sec:OptimalValueFunc} also share the same \emph{\bfseries\bluefont optimal action value function}
+	Optimal policies as defined in \cref{sec:OptimalValueFunc} also share the same \emph{\bfseries\bluefont optimal action-state value function}
 	\begin{equation}
 	Q^*(s,a) = \max_\pi Q^\pi(s,a)
 	\end{equation}
@@ -193,7 +193,9 @@ The optimal value $Q^*$ follows its own variant of the \textbf{\bluefont optimal
 \end{equation}
 
 
-\paragraph{Link between the optimal value functions} We also have a link between the optimal value functions. Using the Bellman optimality equation on $Q$ \eqref{eq:QValOptimalBellmanEqn}, we get:
+\subsubsection{Link between the optimal value functions}
+
+We also have a link between the optimal value functions. Using the Bellman optimality equation on $Q$ \eqref{eq:QValOptimalBellmanEqn}, we get:
 \[
 	Q^*(s,a) = \EE_\pi\left[
 	r_t + \gamma V^*(s_{t+1}) \scalemid s_t=s, a_t=a
@@ -206,11 +208,13 @@ Conversely, the optimal value function can be expressed by reformulating the Bel
 \end{equation}
 
 
-\paragraph{Obtaining the optimal policy} Given the optimal action-state value function $Q^*$, you can define an optimal policy by taking
+\subsubsection{Obtaining the optimal policy}
+
+Given the optimal action-state value function $Q^*$, you can define an optimal policy by taking
 \[
 	\pi^*(s,a) \in \argmax_{a\in\calA} Q^*(s,a).
 \]
-By the way, this shows we can always find a \underline{deterministic} optimal policy.
+By the way, this shows we can always find a \underline{deterministic} optimal policy. This is an \textbf{important} property of the optimal $Q$-function which we will use to design policy optimization algorithms.
 
 
 \section{Algorithms for dynamic programming}
@@ -239,7 +243,7 @@ This algorithm is especially useful for discrete state and action spaces. It can
 
 Each iterate $V_k$ is not necessarily the value function of some policy.
 
-The stopping condition for the iterations can either be that a fixed number of iterations $K$ has been reached, or that the value function increments have fallen below some threshold (e.g. that $\|V_{k+1} - V_k\|_{\infty} \leq \epsilon$ for instance).
+The stopping condition for the iterations can either be that a fixed number of iterations $K$ has been reached, or an $\epsilon$-convergence criterion, i.e. stop when value function increments fall below some threshold (e.g. $\|V_{k+1} - V_k\|_{\infty} \leq \epsilon$).
 
 
 
@@ -255,10 +259,10 @@ The idea of \textit{policy iteration} is to use the action-state value function 
 \]
 It can then be shown that $V^{\pi'} \geq V^{\pi}$, and that improvements stop if and only if the Bellman optimality condition is satisfied.
 
-To decide when to stop, we can use a set number of iterations, or use $\epsilon$-convergence criterion as suggested before for value iteration.
+To decide when to stop, we can use a set number of iterations, or use a $\epsilon$-convergence criterion as suggested before for value iteration.
 
 
-Policy iteration can also be performed for other improvement algorithms. For instance, \textbf{$\boldsymbol\epsilon$-greedy improvement} performs greedy updates at each state probabilistically.
+Policy iteration can also be performed for other improvement algorithms. For instance, \textbf{$\boldsymbol\epsilon$-greedy improvement} performs greedy updates at each state probabilistically, taking the best action suggested by the $Q$-function with probability $\epsilon$ and otherwise taking a random action.
 
 
 
@@ -266,16 +270,22 @@ Policy iteration can also be performed for other improvement algorithms. For ins
 
 \chapter{Approximate Reinforcement Learning}
 
-As in regular control theory, dynamic programming opened up a lot of venues to solve MDPs we know everything about. But what do we do when we don't have a full, tabular model of the transitions, rewards\ldots~of our system?
+As in regular control theory, dynamic programming opens up a lot of venues to solve MDPs we know everything about. But what do we do when we don't have a full, tabular model of the transitions and rewards of our system?
 
 There are two ideas: use several \textbf{\bluefont episodes} (trajectories) of agents following some policy (or policies) to compute empirical returns and build estimates of the value, or update our estimates as-we-go as we follow an agent's actions and the rewards it gets (\textbf{\bluefont online learning}).
 
 
+There are two aspects that need to be discussed:
+\begin{itemize}
+	\item \textbf{policy evaluation}
+	\item \textbf{policy optimization}
+\end{itemize}
 
 
+We will start by discussing approximate policy evaluation techniques and see how they apply to optimizing the policies as we go.
 
 
-\section{Monte Carlo}
+\section{Monte Carlo Policy Evaluation}
 
 The idea is naïve: generate episodes $\tau_i$ under a policy $\pi$ starting at some state $s_0$, and compute their empirical returns
 \[
@@ -320,31 +330,155 @@ Other learning rates can be used, and we have the following result ensuring conv
 	\]
 \end{prop}
 
-Incremental MC is also called $\TD(1)$.
+Incremental MC is also called $\TD(1)$. It does not allow online learning.
 
 
 
+\section{Temporal difference (TD) estimation}
 
-\section{Using the Bellman equation -- $\mathsf{TD}(0)$ estimation}
+\subsection{Using the Bellman equation: $\mathsf{TD}(0)$ estimation}
 
-The real value function $V^\pi$ satisfies the Bellman equation. This means that the \textbf{\bluefont temporal difference error} of a good estimate $\widehat{V}^\pi$ of $V^\pi$, defined as
-\[
-	\delta_t = r_t + \gamma \widehat{V}^\pi(s_{t+1}) - \widehat{V}^\pi(s_t),
-\]
+The real value function $V^\pi$ satisfies the Bellman equation. This means that the \textbf{\bluefont temporal difference error} of a good estimate $\widehat{V}^\pi$ of $V^\pi$, defined after each transition and reward ${\redfont s_t,r_t,s_{t+1}}$
+\begin{equation}\label{eq:ValueTDerror}
+	{\bluefont\delta_t} = {\redfont r_t} + \gamma \widehat{V}^\pi({\redfont s_{t+1}}) - \widehat{V}^\pi({\redfont s_t}),
+\end{equation}
 should be small.
 
+The $\TD(0)$ updates are performed as
+\begin{align*}
+	\widehat{V}^\pi(s_t) &\leftarrow
+	\widehat{V}^\pi(s_t) + \alpha_t {\bluefont \delta_t} \\
+	&= (1 - \alpha_t)\widehat{V}^\pi({\redfont s_t}) + \alpha_t ({\redfont r_t} + \gamma \widehat{V}^\pi({\redfont s_{t+1}}))
+\end{align*}
+
+\paragraph{Choosing the learning rate} For incremental MC, a natural learning rate that works was $\alpha_n = 1/n$. For this temporal difference update scheme, it can be shown that we can use an \textbf{adaptive state-dependent learning rate} $\alpha_t = \alpha(s_t)$:
+\begin{prop}\label{prop:ValueTD0learningRate}
+	Set the learning rate to $\alpha_t = \alpha(N_t(s_t))$ where $N_t(s)$ is the number of times state $s\in\calS$ has been visited before time $t$. If we suppose $N_t(s) \to \infty$ (every state is visited infinitely many times), then the conditions
+	\begin{equation}
+	\sum_{n=0}^{\infty} \alpha(n) = \infty \quad
+	\sum_{n=0}^{\infty} \alpha(n)^2 < \infty
+	\end{equation}
+	lead to convergence of the scheme.
+\end{prop}
+
+This scheme doesn't require the entire trajectory to be known to perform an update, allowing for fully online learning.
 
 
 
+\subsection{Temporal difference $\TD(\lambda)$}
+
+These schemes average between incremental MC and $\TD(1)$. The scheme is defined for $0 < \lambda < 1$ as:
+\begin{equation}
+	\widehat{V}^\pi(s_t) \leftarrow \widehat{V}^\pi(s_t) + \alpha(s_t) \sum_{t'=t}^T (\gamma\lambda)^{t'-t}\delta_{t'}
+\end{equation}
+where ${(\delta_{t'})}_{t'}$ is the sequence of temporal differences errors of the trajectory.
 
 
-\section{$\TD(\lambda)$}
-
-\subsection{Eligibility traces}
+This scheme \textit{does} require the entire trajectory to be known before performing updates, but it re-discounts them using the parameter $\lambda$.
 
 
+\subsubsection{Eligibility traces}
+
+At every transition $s_t,r_t,s_{t+1}$, we define the temporal difference $\delta_t$ and update the \textbf{\bluefont eligibility traces} {\bluefont $z(s)$} as
+\[
+	\forall s\in\calS \quad 
+	z(s) = \begin{cases}
+	\lambda z(s) &\text{if }s\neq s_t \\
+	1 + \lambda z(s)& \text{if }s=s_t \\
+	0& \text{if } s_t = s_0 \text{ (reset the traces)}
+	\end{cases}
+\]
+
+For policy evaluation, we update the value function estimate for all states $s\in\calS$ using the eligibility traces with
+\begin{equation}
+	\widehat{V}^\pi(s) \leftarrow
+	\widehat{V}^\pi(s) + \alpha(s){\bluefont z(s)}\delta_t
+\end{equation}
 
 
+
+This introduces a compromise between propagating rewards faster than $\TD(0)$ and having smaller variance than incremental MC.
+
+
+\begin{remark}
+	All the previous ideas for policy evaluation on the value function $V^\pi$ readily apply to evaluating the action-state value $Q^\pi$.
+\end{remark}
+
+
+
+\section{Application of TD to policy improvement}
+
+After introducing the previous temporal difference notions for policy evaluation, we can see how they work for \textbf{policy improvement} schemes. The basic idea is to alternate the previous temporal-difference policy evaluation techniques with policy improvement ideas from \cref{chap:DP} which exploit the $Q$ value function.
+
+\subsection{SARSA}
+
+We define an exploration policy using the softmax function and a temperature parameter $\tau$:
+\[
+	\pi_Q(s,a) =
+	\frac{\exp(Q(s,a)/\tau)}{
+		\sum_{a'\in\calA} \exp(Q(s,a')/\tau)
+	}
+\]
+After taking an action according to $\pi_Q$, we update using the $\TD(1)$ scheme: compute the temporal difference of the $Q$-function
+\begin{equation}\label{eq:QfuncTDerror}
+	{\bluefont \delta_t} = r_t + \gamma \widehat{Q}(s_{t+1}, a_{t+1}) - \widehat{Q}(s_t, a_t)
+\end{equation}
+and update $Q$
+\begin{equation*}
+\begin{aligned}
+	\widehat{Q}(s_t, a_t) &\leftarrow
+	\widehat{Q}(s_t, a_t) + \alpha_t {\bluefont \delta_t}  \\
+	&= (1-\alpha_t)\widehat{Q}(s_t, a_t)
+	+ \alpha_t (r_t + \widehat{Q}(s_{t+1}, a_{t+1}))
+\end{aligned}
+\end{equation*}
+
+We can ensure the policy continues to improve by decreasing the temperature $\tau$ to 0 and becoming more and more greedy in our action selection (keeping the same $\tau$ reduces the algorithm to some kind of softmax policy evaluation).
+
+Extension to $\TD(\lambda)$ update schemes is straightforward.
+
+
+
+\subsection{Q-learning}
+
+The idea is to introduce the optimal TD error for the $Q$ value function
+\begin{equation}
+	\delta_t = r_t + \gamma \max_{a'}\widehat{Q}(s_{t+1},a') - \widehat{Q}(s_t,a_t)
+\end{equation}
+and updating the $Q$ estimate using that:
+\[
+	\widehat{Q}(s_t,a_t) \leftarrow \widehat{Q}(s_t,a_t) + \alpha_t {\bluefont\delta_t}
+\]
+
+\begin{remark}
+	This is \underline{not} the same as taking the greedy action when simulating the trajectory: this is upper-bounding the $Q$-value TD error \eqref{eq:QfuncTDerror} and using that upper bound to update the value.
+\end{remark}
+
+
+\begin{algorithm}
+	\caption{Q-learning}
+	\KwIn{Initial state $s_0$, exploration policy}
+	\Repeat{trajectory terminates}{
+		Take action $a_t$ according the exploration policy\;
+		Get reward and next state $(r_t, s_{t+1})$\;
+		Compute TD error $\delta_t = r_t + \gamma\max_{a'}\widehat{Q}(s_{t+1},a') - \widehat{Q}(s_t, a_t)$\;
+		$\widehat{Q}(s_t,a_t) \leftarrow \widehat{Q}(s_t,a_t) + \alpha_t \delta_t$\;
+	}
+	\tcp{Compute the policy from the $Q$ value}
+	\ForEach{$s\in\calS$}{
+		$\tilde{\pi}(s) \leftarrow \argmax_{a\in\calA} \widehat{Q}(s,a)$\;
+	}
+	\Return Policy $\tilde{\pi}$\;
+\end{algorithm}
+
+We can use several exploration policies, such as $\epsilon$-greedy exploration (where we take the $\widehat{Q}$-optimal action with probability $\epsilon$ and otherwise take a random action).
+
+
+\paragraph{What about the learning rate} We can introduce, just as in evaluating the value $V$ (see \cref{prop:ValueTD0learningRate}), a action-state count $N_t(s,a)$ and set an adaptive learning rate
+\[
+	\alpha_t = \alpha(N_t(s_t, a_t))
+\]
+and the Robbins-Monro conditions on the function $\alpha$ work out the same.
 
 
 
