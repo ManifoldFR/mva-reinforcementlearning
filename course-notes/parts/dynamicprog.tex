@@ -71,10 +71,14 @@ which can be shown to be contractant, ensuring the existence of a solution.
 		\sum_{s'\in\calS} \sum_{a\in\calA} \pi(s,a) p(s,a,s')V^\pi(s')
 		\]
 		\item in non-discrete state spaces, the sum can be replaced by an integral with respect to a measure $p(s,\pi(s),\der s')$
-		\item if the rewards are given for transitions as $r(s,a,s')$, we introduce $r(s,a) = \sum_{s'\in\calS}r(s,a,s')$, and the Bellman equation can be rewritten
+		\item if the rewards are given for transitions as $r(s,a,s')$, we introduce
 		\[
-		V^\pi(s) = \sum_{s'\in\calS}
-		r(s,\pi(s),s') + \gamma p(s,\pi(s),s')V^\pi(s')
+			r(s,a) = \sum_{s'\in\calS} p(s,a,s') r(s,a,s'),
+		\]
+		and the Bellman equation can be rewritten
+		\[
+		V^\pi(s) = \sum_{s'\in\calS} p(s,\pi(s),s')
+		(r(s,\pi(s),s') + \gamma V^\pi(s'))
 		\]
 	\end{itemize}
 \end{remark}
@@ -136,7 +140,7 @@ Then, we have that the optimal value function satisfies the equation
 \begin{defn}[action-state value function]
 	The \textit{action-state value function} of a policy $\pi$ is the function $Q^\pi\colon \calS\times\calA\to \RR$ is defined by
 	\begin{equation}
-	Q^\pi(s, a) \coloneqq \EE_{\tau\sim \pi}
+	Q^\pi(s, a) \coloneqq \EE_{\pi}
 	\left[
 	\sum_{t=0}^T \gamma^t r(s_t, a_t) \scalemid s_0 = s, a_0 = a
 	\right]
@@ -179,9 +183,9 @@ The action-state value function has its own \textbf{\bluefont Bellman equation}:
 \begin{defn}[Optimal action value function]
 	Optimal policies as defined in \cref{sec:OptimalValueFunc} also share the same \emph{\bfseries\bluefont optimal action-state value function}
 	\begin{equation}
-	Q^*(s,a) = \max_\pi Q^\pi(s,a)
+		Q^* = \max_\pi Q^\pi
 	\end{equation}
-	for $s\in\calS$, $a\in\calA$.	
+	for all states $s\in\calS$ and actions $a\in\calA$.	
 \end{defn}
 
 Here, the maximum is also understood with respect to a partial ordering on policies.
@@ -212,7 +216,7 @@ Conversely, the optimal value function can be expressed by reformulating the Bel
 
 Given the optimal action-state value function $Q^*$, you can define an optimal policy by taking
 \[
-	\pi^*(s,a) \in \argmax_{a\in\calA} Q^*(s,a).
+	\pi^*(s) \in \argmax_{a\in\calA} Q^*(s,a).
 \]
 By the way, this shows we can always find a \underline{deterministic} optimal policy. This is an \textbf{important} property of the optimal $Q$-function which we will use to design policy optimization algorithms.
 
@@ -239,11 +243,40 @@ This means we can approximate the optimal value function by iterating the optima
 	\Return Policy $\pi_K$, value $V_K$\;
 \end{algorithm}
 
+\begin{remark}
+Each iterate $V_k$ is not necessarily the value function of some policy.
+\end{remark}
+
 This algorithm is especially useful for discrete state and action spaces. It can be significantly sped up if we have sparse representations of the rewards and transitions.
 
-Each iterate $V_k$ is not necessarily the value function of some policy.
-
 The stopping condition for the iterations can either be that a fixed number of iterations $K$ has been reached, or an $\epsilon$-convergence criterion, i.e. stop when value function increments fall below some threshold (e.g. $\|V_{k+1} - V_k\|_{\infty} \leq \epsilon$).
+
+\begin{prop}[Convergence speed of VI]
+	If given an upper bound $r_{\max{}} \geq \sup |r(\cdot)|$ on the rewards, we $\epsilon$-converge in at most
+	\[
+		K = \frac{\log(r_{\max{}})/\epsilon}{\log(1/\gamma)}
+	\]
+	steps.
+\end{prop}
+
+\paragraph{Performance guarantees} The performance loss between the final policy $\pi_K$ and the optimal policy $\pi^*$ is measured by the distance between their values:
+\[
+	\|V^* - V^{\pi_K}\|_\infty \leq
+	\frac{2\gamma}{1 - \gamma} \| V^* - V_K\|_\infty
+\]
+
+\paragraph{Alternative termination condition}
+\[
+	\|V_k-V_{k-1}\|_\infty -
+	\min_{s\in\calS} |V_k(s) - V_{k-1}(s)| \leq \epsilon
+\]
+
+\paragraph{Complexity} The temporal complexity of VI is $O(KS^2A)$ -- indeed the complexity of applying the Bellman operator is $O(S^2A)$
+
+
+
+\subsubsection{Variants}
+
 
 
 
@@ -262,13 +295,12 @@ It can then be shown that $V^{\pi'} \geq V^{\pi}$, and that improvements stop if
 To decide when to stop, we can use a set number of iterations, or use a $\epsilon$-convergence criterion as suggested before for value iteration.
 
 
-Policy iteration can also be performed for other improvement algorithms. For instance, \textbf{$\boldsymbol\epsilon$-greedy improvement} performs greedy updates at each state probabilistically, taking the best action suggested by the $Q$-function with probability $\epsilon$ and otherwise taking a random action.
+Policy iteration can also be performed for other improvement algorithms. For instance, \textbf{$\boldsymbol\epsilon$-greedy improvement} performs greedy updates at each state probabilistically, taking the greedy with probability $1-\epsilon$ and otherwise taking a random action.
 
 
 
 
-
-\chapter{Approximate Reinforcement Learning}
+\chapter{Approximate Reinforcement Learning}\label{chap:ApproxRL}
 
 As in regular control theory, dynamic programming opens up a lot of venues to solve MDPs we know everything about. But what do we do when we don't have a full, tabular model of the transitions and rewards of our system?
 

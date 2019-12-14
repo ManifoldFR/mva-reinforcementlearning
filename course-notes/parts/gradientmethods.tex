@@ -7,7 +7,7 @@
 \chapter{Approximate solving of Markov Decision Processes with Policy Gradients}
 
 
-Solving MDPs is seeking the maximizing policy of the value function. For approximate solving of MDPs, we target what could be a more general \textbf{\bluefont policy performance metric}. Often, it is indeed connected to the value function
+Solving MDPs is seeking the maximizing policy of the value function. For approximate solving of MDPs, we target what could be a more general \textbf{\bluefont policy performance metric}. Often, it is indeed the value function
 \begin{equation}\label{eq:PolicyPerfCumReward}
 J(\pi) = \EE_{\tau\sim\pi}\left[
 \sum_{t=0}^{T} \gamma^t r_t
@@ -23,7 +23,7 @@ We seek to compute the maximizing policy in a parametric search space $\{\pi_\th
 \max_\theta J(\pi_\theta)
 \]
 
-Iterative methods could be used if $J$ could be computed in closed form with given reward and transition structures; if these are not given they could be estimated by Monte Carlo methods, which would be very expensive and wasteful.
+Iterative methods could be used if $J$ can be obtained in closed form; if these are not given they could be estimated by Monte Carlo methods, which would be very expensive and wasteful.
 
 Instead, we will update the estimate as we go and simulate trajectories, by iteratively updating the policy parameter $\theta$ using a gradient ascent method with an estimated gradient.
 
@@ -106,9 +106,10 @@ We will simulate multiple trajectories (\textit{episodes}) to perform the gradie
 
 This algorithm can be modified in several ways, by performing the gradient step at every time in the process, or on the entire batch of trajectories. \textcite{Sutton1998} actually use the more fine-grained update scheme wherein the parameter $\theta$ is updated at each step $t$ of every episode\footnote{This allows for fully online learning.}.
 
-\subsection{Variance reduction: temporal structure and baselines}
+\subsection{Variance reduction: temporal structure}
 
-\paragraph{Temporal structure} We can re-weigh the log-probability gradients in \cref{eq:PolicyGradient} by exploiting the fact that, for any time $t$, the cumulative rewards $\sum_{t'=0}^{t-1} \gamma^{t'} r_{t'}$ from $0$ to $t-1$ are measurable with respect to the trajectory up to $t$, $\tau_{0:t}$:
+
+We can re-weigh the log-probability gradients in \cref{eq:PolicyGradient} by exploiting the fact that, for any time $t$, the cumulative rewards $\sum_{t'=0}^{t-1} \gamma^{t'} r_{t'}$ from $0$ to $t-1$ are measurable with respect to the trajectory up to $t$, $\tau_{0:t}$:
 \begin{prop}
 	The policy gradient \eqref{eq:PolicyGradient} can be rewritten as
 	\begin{equation}
@@ -147,7 +148,9 @@ The following algorithm provides an efficient recursive method for computing the
 \end{algorithm}
 
 
-\paragraph{Baselines} Given any \textbf{\bluefont baseline} function $b\colon \calS \to \RR$, we can rewrite the policy gradient again as
+\subsection{Variance reduction with baselines}
+
+Given any \textbf{\bluefont baseline} function $b\colon \calS \to \RR$, we can rewrite the policy gradient again as
 \begin{equation}\label{eq:PolicyGradBaseline}
 \nabla_\theta J(\pi_\theta) =
 \EE_\pi \left[
@@ -166,44 +169,47 @@ The resulting policy gradient estimate we get is
 \gamma^t (G^i_t - {\redfont b(s^i_t)})
 \nabla_\theta \log\pi_\theta (s_t^i, a_t^i)
 \end{equation}
-which is an unbiased estimate.
+which is still an unbiased estimate -- but with the added benefit of \textbf{variance reduction} if $b$ is chosen right.
 
-It can be shown that the ``best" baseline in terms of variance reduction $b^*$ is the value function:
+\subsubsection{The best baseline.}
+
+It can be shown that the ``best" baseline in terms of variance reduction is actually the value function:
 \[
 b^*(s_t) = \EE_{\pi_\theta}\left[\sum_{t'=t}^T \gamma^{t'-t} r_{t'} \scalemid s_t \right]
+= V^\pi(s_t)
 \]
-\ldots which we are already trying to approximate. This suggests that we use some kind of \textbf{bootstrap} estimate for the baseline.
+\ldots which we are already trying to approximate. This suggests that we do some kind of \textbf{bootstrapping}. The approximate policy evaluation ideas from the previous \cref{chap:ApproxRL} will come in handy.
 
-An obvious, nonparametric baseline is Monte Carlo estimation:
+The obvious first idea is nonparametric Monte Carlo estimation:
 \[
-\widehat{b}_t =
-\frac{1}{M}\sum_{i=1}^M G^i_t
+	\widehat{b}(s_t) = \frac{1}{M}\sum_{i=1}^M G^i_t
 \]
 This baseline is an unbiased estimate: following \cref{eq:ValueFunctionExpectationLink} the expectation of the $Q$-function estimate $G_t$ under the policy $\pi_\theta$ is
 \[
-\EE_{a_t\sim \pi_\theta(s_t,\cdot)}
-\EE_{\pi_\theta}
-\left[G_t\right] =
-\EE_{a_t\sim\pi_\theta(s_t,\cdot)}
-\EE_{\pi_\theta}
-\left[
-\sum_{t'=t}^T \gamma^{t'-t}r_{t'}
-\scalemid s_t,a_t
-\right] = V^\pi(s_t)
+	V^\pi(s_t) =
+	\EE_{a_t\sim \pi_\theta(s_t,\cdot)}
+	\EE_{\pi_\theta}
+	\left[G_t\right] =
+	\EE_{a_t\sim\pi_\theta(s_t,\cdot)}
+	\EE_{\pi_\theta}
+	\left[
+	\sum_{t'=t}^T \gamma^{t'-t}r_{t'}
+	\scalemid s_t,a_t
+	\right]
 \]
+However, this introduces additional variance and the baseline might become noisy.
+
 
 
 \subsection{Parametric Bootstrapping of the baseline}\label{sec:REINFORCEparametricBaseline}
 
 We define the bootstrap estimate $b(s) \coloneqq \widehat{v}_\nu(s)$ lying in a parametric search space $\{\widehat{v}_\nu : \nu \in \mathcal{V}\}$. The value parameter can be iteratively updated using gradient steps alternatively with the policy parameter $\theta$.
 
-For a given trajectory sample $\tau=\{s_0,a_0,r_0,\ldots\}$, introduce the mean-squared error between the forward cumulative rewards (a nonparametric estimate of the value function) and the output of the value model:
-\[
-\calL(\nu; \tau) =
-\sum_{t=0}^{T} \left(G_t
-- \widehat{v}_\nu(s_t)
-\right)^2
-\]
+For a given trajectory sample $\tau=\{s_0,a_0,r_0,\ldots\}$, introduce the mean-squared error between the forward returns (a nonparametric estimate of the value function) and the value model's output:
+\begin{equation}
+	\calL(\nu; \tau) =
+	\sum_{t=0}^{T} \left(G_t-\widehat{v}_\nu(s_t)\right)^2
+\end{equation}
 Then before each update of the policy $\pi_\theta$, update the value parameter $\nu$ using either the gradient of $\calL$.
 
 The adapted episodic learning algorithm with an adaptive baseline is as follows:
@@ -235,7 +241,7 @@ As before (see \cref{rmk:PolicyGradPseudoLoss}), this algorithm can be implement
 
 \paragraph{The idea} The enhanced REINFORCE algorithm builds estimates of the value function to compute the policy gradient: this Monte Carlo method is computationally expensive, and may still lead to high variance. To combat this, it might be a good idea to \textit{learn} from the Monte Carlo estimates in a way that gives a consistent estimate that follows the policy gradient updates.
 
-To achieve this, the class of \textbf{\bluefont actor-critic methods} introduces a second search space for approximation of the state(-action) value function and uses \textbf{bootstrapped temporal-difference estimates} for the returns $G_t$. The supervised baseline of \cref{sec:REINFORCEparametricBaseline} was already a first step towards this, but this time we actually use the value estimate for policy evaluation and not only for variance reduction. The subtle difference is further explained in \cite[chap.\ 13.5]{Sutton1998}.
+To achieve this, the class of \textbf{\bluefont actor-critic methods} introduces a second search space for approximation of the state(-action) value function and uses \textbf{bootstrapped temporal-difference estimates} for the returns $G_t$, by taking inspiration from TD policy evaluation (see \cref{chap:ApproxRL}). The supervised baseline of \cref{sec:REINFORCEparametricBaseline} was already a first step towards this, but this time we actually use the value estimate for policy evaluation and not only for variance reduction. The subtle difference is further explained in \cite[chap.\ 13.5]{Sutton1998}.
 
 \subsection{Actor-Critic}
 
@@ -331,10 +337,10 @@ The A2C algorithm is as follows:
 
 
 The value update step in \cref{algo:AdvantageActorCritic} (and also \cref{algo:BaseActorCritic}) can be seen as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t:t+1}} = r_t + \gamma\widehat{v}_\nu(s_{t+1})$ to the value model predictions $\widehat{v}_\nu(s_t)$, with a mean-squared loss
-\[
+\begin{equation}
 	\calL(\nu) =
 	\sum_{t=0}^T ({\redfont G_{t:t+1}} - \widehat{v}_{\nu}(s_t))^2
-\]
+\end{equation}
 We then perform a semi-gradient update step, taking the gradient with respect to $\nu$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it.
 
 \begin{remark}
