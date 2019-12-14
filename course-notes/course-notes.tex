@@ -1,7 +1,7 @@
 % !TeX spellcheck = en_US
 \documentclass[12pt]{report}
 
-\usepackage[a4paper,hmargin=1.8cm,vmargin=2.2cm]{geometry}
+\usepackage[a4paper,hmargin=1.8cm,vmargin=2.0cm]{geometry}
 \usepackage{subfiles}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{mathtools}
@@ -25,7 +25,10 @@
 
 \setlist{itemsep=-2pt,topsep=2pt}
 
-\usepackage[backend=biber,sorting=nyt]{biblatex}
+\usepackage[
+	backend=biber,
+	style=alphabetic,
+	citestyle=alphabetic]{biblatex}
 
 \addbibresource{references.bib}
 
@@ -80,8 +83,8 @@
 	{20pt}{\huge}
 \titleformat*{\section}{\Large\bfseries\sffamily}
 \titleformat*{\subsection}{\large\bfseries\sffamily}
-\titleformat{\subsubsection}[hang]{\sffamily\bfseries}{}{}{}
-\titleformat{\paragraph}[runin]{\sffamily\bfseries}{}{}{}[.]
+\titleformat{\subsubsection}[hang]{\large\bfseries\sffamily}{}{}{}
+\titleformat{\paragraph}[runin]{\bfseries\sffamily}{}{}{}[.]
 
 %%% Colors %%%
 
@@ -154,6 +157,7 @@
 
 \subfile{parts/dynamicprog.tex}
 
+\subfile{parts/approxrl.tex}
 
 \subfile{parts/gradientmethods.tex}
 

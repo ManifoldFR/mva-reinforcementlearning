@@ -17,6 +17,11 @@ The \textbf{\bluefont return} of a trajectory $(s_0,a_0,r_0,s_1,\ldots)$ at time
 	G_t = \sum_{k} \gamma^k r_{t+k}
 \end{equation}
 
+If given a complete trajectory (episode) that terminates, the returns can be computed recursively using
+\begin{equation}
+	G_t = r_t + \gamma G_{t+1}.
+\end{equation}
+
 
 
 \section{Decision rules, Policies}

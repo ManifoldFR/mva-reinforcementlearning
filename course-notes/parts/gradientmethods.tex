@@ -4,7 +4,7 @@
 
 \begin{document}
 
-\chapter{Approximate solving of Markov Decision Processes with Policy Gradients}
+\chapter{Approximate solving of MDPs with Policy Gradients}
 
 
 Solving MDPs is seeking the maximizing policy of the value function. For approximate solving of MDPs, we target what could be a more general \textbf{\bluefont policy performance metric}. Often, it is indeed the value function
@@ -134,20 +134,6 @@ We can re-weigh the log-probability gradients in \cref{eq:PolicyGradient} by exp
 \end{prop}
 
 
-The following algorithm provides an efficient recursive method for computing the returns $G^i_t$:
-
-\begin{algorithm}
-	\caption{Computing the returns}\label{algo:ComputeReturnsEfficient}
-	\KwIn{The rewards $(r_t)_{0\leq t\leq T}$, discount factor $\gamma$}
-	\KwOut{The array of discounted returns.}
-	$R_T \leftarrow r_T$\;
-	\ForEach{$t\leftarrow T-1$ \KwTo $0$}{
-		$G_t \leftarrow r_t + \gamma G_{t+1}$\;
-	}
-	\Return $(G_t)_{0\leq t\leq T}$\;
-\end{algorithm}
-
-
 \subsection{Variance reduction with baselines}
 
 Given any \textbf{\bluefont baseline} function $b\colon \calS \to \RR$, we can rewrite the policy gradient again as
@@ -205,10 +191,10 @@ However, this introduces additional variance and the baseline might become noisy
 
 We define the bootstrap estimate $b(s) \coloneqq \widehat{v}_\nu(s)$ lying in a parametric search space $\{\widehat{v}_\nu : \nu \in \mathcal{V}\}$. The value parameter can be iteratively updated using gradient steps alternatively with the policy parameter $\theta$.
 
-For a given trajectory sample $\tau=\{s_0,a_0,r_0,\ldots\}$, introduce the mean-squared error between the forward returns (a nonparametric estimate of the value function) and the value model's output:
+For a given trajectory sample $\tau=\{s_0,a_0,r_0,\ldots\}$, introduce the mean-squared error between the returns $G_t = \sum_{t'= t}^T \gamma^{t'-t} r_{t'}$ of the entire trajectory (a nonparametric estimate of the value function) and the output of the value approximator:
 \begin{equation}
 	\calL(\nu; \tau) =
-	\sum_{t=0}^{T} \left(G_t-\widehat{v}_\nu(s_t)\right)^2
+	\sum_{t=0}^{T} (G_t-\widehat{v}_\nu(s_t))^2
 \end{equation}
 Then before each update of the policy $\pi_\theta$, update the value parameter $\nu$ using either the gradient of $\calL$.
 
@@ -224,14 +210,14 @@ The adapted episodic learning algorithm with an adaptive baseline is as follows:
 	}
 \end{algorithm}
 
-As before (see \cref{rmk:PolicyGradPseudoLoss}), this algorithm can be implemented within an automatic differentiation framework such as \textsf{PyTorch} by defining the right computational graphs. The associated pseudo-loss would be
+As before (see \cref{rmk:PolicyGradPseudoLoss}), this algorithm can be implemented in an automatic differentiation framework like \textsf{PyTorch} by defining the right computational graph. The associated pseudo-loss would be
 \[
 \tilde{J}(\theta) = 
 \sum_{t=0}^T \gamma^t (G_t - \widehat{v}_\nu(s_t)) \log\pi_\theta(s_t, a_t)
 \]
 
 \begin{remark}
-	The difference between the returns and the value approximation $G_t - \widehat{v}_\nu(s_t)$ is a (biased) estimate of the temporal-difference error $\delta_t = r_t + \gamma \widehat{v}(s_{t+1}) - \widehat{v}(s_t)$. Thus, the mean-squared error $\calL$ can be seen as an estimate of the Bellman error of the value proposal $\widehat{v}_\nu$.
+	The difference between the returns and the value approximation $G_t - \widehat{v}_\nu(s_t)$ is a (biased) estimate of the temporal-difference error $\delta_t = r_t + \gamma \widehat{v}(s_{t+1}) - \widehat{v}(s_t)$. Thus, the mean-squared error $\calL$ is an estimate of the Bellman error of the value approximator $\widehat{v}_\nu$.
 \end{remark}
 
 
@@ -298,16 +284,23 @@ An unbiased estimate of $A^\pi$ is the temporal difference error of the value fu
 \]
 This can be seen by taking the expectation with respect to $s_{t+1}$ conditionally on $(s_t,a_t)$.
 
-This leads to the (bootstrapped) estimate, using a parametric approximation $\widehat{v}_\nu$ of the state value function:
-\[
-	\widehat{\delta}_t = r_t + \gamma\widehat{v}_\nu(s_{t+1}) - \widehat{v}_\nu(s_t).
-\]
+
+Following the spirit of \cref{chap:approxRL} on approximate policy evaluation, this leads to the (bootstrapped) TD error using the parametric approximation $\widehat{v}_\nu$ of the value function:
+\begin{equation}
+	{\bluefont \delta_t} = r_t + \gamma\widehat{v}_\nu(s_{t+1}) - \widehat{v}_\nu(s_t)
+\end{equation}
+just as in \cref{chap:approxRL}.
+This last step can be seen as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t}} = r_t + \gamma\widehat{v}_\nu(s_{t+1})$ to the value model predictions $\widehat{v}_\nu(s_t)$, with a mean-squared loss
+\begin{equation}
+	\calL(\nu) = \sum_{t=0}^T ({\redfont G_{t}} - \widehat{v}_{\nu}(s_t))^2
+\end{equation}
+
 Now, we have no need to learn a action-state critic $\widehat{q}_\omega$, since we have TD error estimates that can be expressed only using $\widehat{v}_\nu(s)$ -- which is simpler.
 
-The A2C algorithm is as follows:
+The episodic A2C algorithm is as follows:
 
 \begin{algorithm}[H]
-	\caption{Advantage Actor-Critic (A2C)}\label{algo:AdvantageActorCritic}
+	\caption{Advantage Actor-Critic (A2C), episodic case}\label{algo:AdvantageActorCritic}
 	\KwIn{Initial policy parameter $\theta$, value parameter $\nu$}
 	\KwOut{Policy $\pi_{\theta^*}$, value approximation $\widehat{v}_{\nu^*}$}
 	\Repeat{finished}{
@@ -333,24 +326,14 @@ The A2C algorithm is as follows:
 	\end{align}
 	\end{subequations}
 	where the temporal-difference estimates $\delta^i_t$ must be detached from the graph.
-\end{remark}
 
-
-The value update step in \cref{algo:AdvantageActorCritic} (and also \cref{algo:BaseActorCritic}) can be seen as a supervised regression step, where we fit the (bootstrapped) returns ${\redfont G_{t:t+1}} = r_t + \gamma\widehat{v}_\nu(s_{t+1})$ to the value model predictions $\widehat{v}_\nu(s_t)$, with a mean-squared loss
-\begin{equation}
-	\calL(\nu) =
-	\sum_{t=0}^T ({\redfont G_{t:t+1}} - \widehat{v}_{\nu}(s_t))^2
-\end{equation}
-We then perform a semi-gradient update step, taking the gradient with respect to $\nu$ whilst ignoring the dependency of the return estimate $G_{t:t+1}$ on it.
-
-\begin{remark}
-This means that the pseudo-loss $\tilde{C}(\nu)$ in \cref{rmk:A2CAutoDiff} can be replaced by the MSE $\calL(\nu)$.
+	Equivalently, the pseudo-loss $\tilde{C}(\nu)$ in \cref{rmk:A2CAutoDiff} can be replaced by the MSE $\calL(\nu)$ after detaching $G_t$.
 \end{remark}
 
 
 We create the estimate $G_{t:t+1}$ by only looking at the immediate reward and bootstrapping the rest of the value: this is called \textbf{one-step actor-critic}. It has poor sample efficiency: the return estimates ignore most of the (actual) future rewards and end up bootstrapping too much. However, it naturally allows for \textit{online learning}.	
 
-This can be easily generalized to using more rewards for bootstrapping the returns: \textbf{$n$-step actor-critic} methods look further ahead and use estimates 
+This can be easily generalized to using more rewards for bootstrapping the returns: \textbf{$\boldsymbol{n}$-step actor-critic} methods look further ahead and use estimates 
 \[
 	{\redfont G_{t:t+n}}
 	= \sum_{k=0}^{n-1}\gamma^k r_{t+k} + \gamma^n \widehat{v}_\nu(s_{t+n})

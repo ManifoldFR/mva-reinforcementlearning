@@ -4,10 +4,18 @@
 
 \chapter{The exploration-exploitation dilemma}
 
+If we recall the description of Q-learning \cpageref{sec:QLearning}, we remember that it is important to define good \textbf{exploration policy} to take actions off-policy.
+
+For purely greedy approaches, we always choose the next action as the maximum mode of the $Q$-function $a_{t+1} \in \argmax_{a\in\calA} \widehat{Q}(s_t, a)$, but we have no convergence guarantees to the optimum: indeed it can be the case that not all state-action pairs $(s,a)$ are updated.
+
+We can also choose the next action randomly in the action space $\calA$, but convergence will be slow because we will not be correctly estimating (exploiting) the action-value function $Q$ under the policy.
+
 
 \section{Multi-Armed Bandits}
 
+A \textit{multi-armed bandit} is similar to an MDP, except there is only a single state: we \textit{take an action} $a\in\calA$ and \textit{get a reward} $r(a)$.
 
+The \textbf{arms} of the bandit are the different possible actions $a$.
 
 
 

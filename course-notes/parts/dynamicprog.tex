@@ -3,7 +3,7 @@
 \begin{document}
 
 
-\chapter{Value functions, Dynamic programming}\label{chap:DP}
+\chapter{Solving MDPs: value functions and Dynamic Programming}\label{chap:DP}
 
 
 \section{The value function}
@@ -200,24 +200,27 @@ The optimal value $Q^*$ follows its own variant of the \textbf{\bluefont optimal
 \subsubsection{Link between the optimal value functions}
 
 We also have a link between the optimal value functions. Using the Bellman optimality equation on $Q$ \eqref{eq:QValOptimalBellmanEqn}, we get:
-\[
-	Q^*(s,a) = \EE_\pi\left[
-	r_t + \gamma V^*(s_{t+1}) \scalemid s_t=s, a_t=a
-	\right]
-\]
+\begin{equation}
+\begin{aligned}
+	Q^*(s,a) &= \EE_{s'\sim d(s,a)}\left[
+	r(s,a) + \gamma V^*(s') \right]  \\
+	&=
+	r(s,a) + \gamma \sum_{s'\in\calS} p(s,a,s') V^*(s')
+\end{aligned}
+\end{equation}
 Conversely, the optimal value function can be expressed by reformulating the Bellman optimality equation \eqref{eq:ValueOptimalBellmanEq}:
 \begin{equation}
-	V^*(s) =
-	\argmax_{a\in\calA} Q^*(s,a)
+	V^*(s) = Q^*(s,\pi^*(s)) =
+	\max_{a\in\calA} Q^*(s,a)
 \end{equation}
 
 
 \subsubsection{Obtaining the optimal policy}
 
 Given the optimal action-state value function $Q^*$, you can define an optimal policy by taking
-\[
+\begin{equation}\label{eq:QValueToOptimalPolicy}
 	\pi^*(s) \in \argmax_{a\in\calA} Q^*(s,a).
-\]
+\end{equation}
 By the way, this shows we can always find a \underline{deterministic} optimal policy. This is an \textbf{important} property of the optimal $Q$-function which we will use to design policy optimization algorithms.
 
 
@@ -277,7 +280,12 @@ The stopping condition for the iterations can either be that a fixed number of i
 
 \subsubsection{Variants}
 
-
+\paragraph{Asynchronous VI} The idea is not to perform the Bellman iterate over the entire value function $V_k$ at once, but perform it on a single state: for every $k$,
+\begin{itemize}
+	\item choose some state ${\redfont s_k} \in \calS$
+	\item update its value $V_{k+1}({\redfont s_k}) \leftarrow \calT^*V_k({\redfont s_k})$.
+\end{itemize}
+This reduces the complexity of each iterate $O(SA)$ in exchange for a larger number of iterates: for the obvious round-robin selection rue for $s_k$ we have at most $O(KS)$ iterations. A smarter selection rule can decrease that number significantly by prioritizing states.
 
 
 
@@ -299,22 +307,23 @@ Policy iteration can also be performed for other improvement algorithms. For ins
 
 
 
+\chapter{Incremental solving of MDPs: Reinforcement Learning}\label{chap:incrRL}
 
-\chapter{Approximate Reinforcement Learning}\label{chap:ApproxRL}
-
-As in regular control theory, dynamic programming opens up a lot of venues to solve MDPs we know everything about. But what do we do when we don't have a full, tabular model of the transitions and rewards of our system?
+As in regular control theory, dynamic programming opens up a lot of venues to solve MDPs we know everything about. But what do we do when we don't have a full model of the transitions and rewards of our system?
 
 There are two ideas: use several \textbf{\bluefont episodes} (trajectories) of agents following some policy (or policies) to compute empirical returns and build estimates of the value, or update our estimates as-we-go as we follow an agent's actions and the rewards it gets (\textbf{\bluefont online learning}).
 
 
 There are two aspects that need to be discussed:
 \begin{itemize}
-	\item \textbf{policy evaluation}
-	\item \textbf{policy optimization}
+	\item \textbf{policy evaluation} (\textit{prediction})
+	\item \textbf{policy optimization} (\textit{control})
 \end{itemize}
 
 
 We will start by discussing approximate policy evaluation techniques and see how they apply to optimizing the policies as we go.
+
+For now, we suppose we are in the \textbf{tabular case}: the value functions can be stored as arrays in memory.
 
 
 \section{Monte Carlo Policy Evaluation}
@@ -362,7 +371,7 @@ Other learning rates can be used, and we have the following result ensuring conv
 	\]
 \end{prop}
 
-Incremental MC is also called $\TD(1)$. It does not allow online learning.
+Incremental MC is also called \textbf{one-step temporal difference} $\TD(1)$. It does not allow online learning.
 
 
 
@@ -383,6 +392,18 @@ The $\TD(0)$ updates are performed as
 	&= (1 - \alpha_t)\widehat{V}^\pi({\redfont s_t}) + \alpha_t ({\redfont r_t} + \gamma \widehat{V}^\pi({\redfont s_{t+1}}))
 \end{align*}
 
+\begin{remark}
+	Introducing the \textbf{bootstrapped return} of the trajectory
+	\[
+		G_t = r_t + \widehat{V}^\pi(s_t),
+	\]
+	we can rewrite the update as
+	\[
+		\widehat{V}^\pi(s_t) \leftarrow \widehat{V}^\pi(s_t) + \alpha_t (G_t - \widehat{V}^\pi(s_t))
+	\]
+\end{remark}
+
+
 \paragraph{Choosing the learning rate} For incremental MC, a natural learning rate that works was $\alpha_n = 1/n$. For this temporal difference update scheme, it can be shown that we can use an \textbf{adaptive state-dependent learning rate} $\alpha_t = \alpha(s_t)$:
 \begin{prop}\label{prop:ValueTD0learningRate}
 	Set the learning rate to $\alpha_t = \alpha(N_t(s_t))$ where $N_t(s)$ is the number of times state $s\in\calS$ has been visited before time $t$. If we suppose $N_t(s) \to \infty$ (every state is visited infinitely many times), then the conditions
@@ -396,10 +417,21 @@ The $\TD(0)$ updates are performed as
 This scheme doesn't require the entire trajectory to be known to perform an update, allowing for fully online learning.
 
 
+\subsection{$\boldsymbol{n}$-step temporal difference (see \cite[chap.~7]{Sutton1998})}
+
+The idea is to use several rewards to compute the temporal difference: the $n$-step $\TD(n)$ reads
+\begin{equation}
+	{\bluefont \delta^{(n)}_t} =
+	\sum_{k=0}^{n-1} \gamma^k r_{t+k}
+	+ \gamma^n \widehat{V}^\pi(s_{t+n}) - \widehat{V}^\pi(s_t)
+\end{equation}
+The $Q$-function update is then done as usual.
+
+
 
 \subsection{Temporal difference $\TD(\lambda)$}
 
-These schemes average between incremental MC and $\TD(1)$. The scheme is defined for $0 < \lambda < 1$ as:
+These schemes average between incremental MC and $\TD(n)$. The scheme is defined for $0 < \lambda < 1$ as:
 \begin{equation}
 	\widehat{V}^\pi(s_t) \leftarrow \widehat{V}^\pi(s_t) + \alpha(s_t) \sum_{t'=t}^T (\gamma\lambda)^{t'-t}\delta_{t'}
 \end{equation}
@@ -410,6 +442,8 @@ This scheme \textit{does} require the entire trajectory to be known before perfo
 
 
 \subsubsection{Eligibility traces}
+
+The idea is to be able to learn online while updating everything (propagating the reward signal) at once. \textcite{Sutton1998} explain that 
 
 At every transition $s_t,r_t,s_{t+1}$, we define the temporal difference $\delta_t$ and update the \textbf{\bluefont eligibility traces} {\bluefont $z(s)$} as
 \[
@@ -444,18 +478,18 @@ After introducing the previous temporal difference notions for policy evaluation
 
 \subsection{SARSA}
 
-We define an exploration policy using the softmax function and a temperature parameter $\tau$:
+We recall the basic property \eqref{eq:QValueToOptimalPolicy} of the optimal policy with respect to $Q^*$. This suggests an idea for \textbf{on-policy control}: define an exploration policy using the softmax function on $Q$ and a temperature parameter $\tau$:
 \[
 	\pi_Q(s,a) =
 	\frac{\exp(Q(s,a)/\tau)}{
 		\sum_{a'\in\calA} \exp(Q(s,a')/\tau)
 	}
 \]
-After taking an action according to $\pi_Q$, we update using the $\TD(1)$ scheme: compute the temporal difference of the $Q$-function
+After observing a transition $(s_t, a_t, r_t, s_{t+1})$, we take the next action $a_{t+1}$ according to $\pi_Q$ and update using the $\TD(1)$ scheme: compute the temporal difference of the $Q$-function
 \begin{equation}\label{eq:QfuncTDerror}
 	{\bluefont \delta_t} = r_t + \gamma \widehat{Q}(s_{t+1}, a_{t+1}) - \widehat{Q}(s_t, a_t)
 \end{equation}
-and update $Q$
+and update $\widehat{Q}$
 \begin{equation*}
 \begin{aligned}
 	\widehat{Q}(s_t, a_t) &\leftarrow
@@ -464,17 +498,40 @@ and update $Q$
 	+ \alpha_t (r_t + \widehat{Q}(s_{t+1}, a_{t+1}))
 \end{aligned}
 \end{equation*}
+We ensure the policy continues to improve by decreasing the temperature $\tau$ to 0 and becoming more and more greedy in our action selection (keeping the same $\tau$ reduces the algorithm to some kind of softmax policy evaluation).
 
-We can ensure the policy continues to improve by decreasing the temperature $\tau$ to 0 and becoming more and more greedy in our action selection (keeping the same $\tau$ reduces the algorithm to some kind of softmax policy evaluation).
+Each update of the algorithm uses the entire state-action transition $(s_t,a_t,r_t,s_{t+1},a_{t+1})$ (from which the name SARSA comes from).
 
-Extension to $\TD(\lambda)$ update schemes is straightforward.
+\begin{algorithm}
+	\caption{SARSA (softmax version)}
+	\KwIn{Initial state $s_0$, initial temperature $\tau$}
+	Take action $a_0 \sim \pi_{\widehat{Q}}(s_0, \cdot)$\;
+	\Repeat{trajectory terminates}{
+		Get reward, next state $(r_t, s_{t+1})$\;
+		Take the next action $a_{t+1} \sim \pi_{\widehat{Q}}(s_{t+1}, \cdot)$\;
+		Compute TD error $\delta_t = r_t + \gamma \widehat{Q}(s_{t+1},a_{t+1}) - \widehat{Q}(s_t, a_t)$\;
+		$\widehat{Q}(s_t,a_t) \leftarrow \widehat{Q}(s_t,a_t) + \alpha_t \delta_t$\;
+		$t \leftarrow t+1$\;
+	}
+	\ForEach{$s\in\calS$}{
+		$\tilde{\pi}(s) \leftarrow \argmax_{a\in\calA} \widehat{Q}(s,a)$\;
+	}
+	\Return Policy $\tilde{\pi}$\;
+\end{algorithm}
+
+
+The use of the value candidate $\widehat{Q}$ to define the policy used to select the action means that SARSA is an \textbf{\bluefont on-policy learning algorithm}.
+
+\textbf{We can use several other exploration policies}, such as $\epsilon$-greedy exploration (where we take the $\widehat{Q}$-optimal action with probability $\epsilon$ and otherwise take a random action).
+
+Extension to $\TD(\lambda)$ update schemes is straightforward using eligibility traces (see \cite[chap.~12]{Sutton1998}), but will lead to slightly different convergence properties due to a compromise between signal (reward) propagation and variance.
 
 
 
-\subsection{Q-learning}
+\subsection{Q-learning}\label{sec:QLearning}
 
 The idea is to introduce the optimal TD error for the $Q$ value function
-\begin{equation}
+\begin{equation}\label{eq:QlearnTDerror}
 	\delta_t = r_t + \gamma \max_{a'}\widehat{Q}(s_{t+1},a') - \widehat{Q}(s_t,a_t)
 \end{equation}
 and updating the $Q$ estimate using that:
@@ -482,16 +539,15 @@ and updating the $Q$ estimate using that:
 	\widehat{Q}(s_t,a_t) \leftarrow \widehat{Q}(s_t,a_t) + \alpha_t {\bluefont\delta_t}
 \]
 
-\begin{remark}
-	This is \underline{not} the same as taking the greedy action when simulating the trajectory: this is upper-bounding the $Q$-value TD error \eqref{eq:QfuncTDerror} and using that upper bound to update the value.
-\end{remark}
+This is \underline{not} the same as using the greedy action to update: this is upper-bounding the $Q$-value TD error \eqref{eq:QfuncTDerror} and using that upper bound to update the value.
 
+This means $Q$-learning is an \textbf{\bluefont off-policy learning algorithm}, whatever exploration policy we use to take actions.
 
 \begin{algorithm}
 	\caption{Q-learning}
 	\KwIn{Initial state $s_0$, exploration policy}
 	\Repeat{trajectory terminates}{
-		Take action $a_t$ according the exploration policy\;
+		Take action $a_t$ according to the exploration policy\;
 		Get reward and next state $(r_t, s_{t+1})$\;
 		Compute TD error $\delta_t = r_t + \gamma\max_{a'}\widehat{Q}(s_{t+1},a') - \widehat{Q}(s_t, a_t)$\;
 		$\widehat{Q}(s_t,a_t) \leftarrow \widehat{Q}(s_t,a_t) + \alpha_t \delta_t$\;
@@ -503,7 +559,8 @@ and updating the $Q$ estimate using that:
 	\Return Policy $\tilde{\pi}$\;
 \end{algorithm}
 
-We can use several exploration policies, such as $\epsilon$-greedy exploration (where we take the $\widehat{Q}$-optimal action with probability $\epsilon$ and otherwise take a random action).
+One option for the exploration policy is to use the $\epsilon$-greedy policy derived from $\widehat{Q}$. If we use an absolute greedy policy for exploration, then this becomes the same as SARSA with that policy.
+
 
 
 \paragraph{What about the learning rate} We can introduce, just as in evaluating the value $V$ (see \cref{prop:ValueTD0learningRate}), a action-state count $N_t(s,a)$ and set an adaptive learning rate

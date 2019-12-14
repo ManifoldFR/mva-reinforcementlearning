@@ -1,0 +1,113 @@
+\documentclass[../course-notes.tex]{subfiles}
+
+\begin{document}
+
+\chapter{Approximate Reinforcement Learning}\label{chap:approxRL}
+
+
+The previous chapter demonstrated how to solve Markov Decision Processes where the state-control dynamics and reward signals are inaccessible, but where we are in a tabular setting where the value functions can be represented exactly.
+
+Now we add an \textbf{additional relaxation} over the standard MDP assumptions: the state and action spaces are too large (infinite, potentially continuous) to access their values in a tabular manner: this can be the case in games like Backgammon.
+Thus, we can use neither dynamic programming nor the RL algorithms discussed before. However, \textbf{\bluefont we can access the value functions through approximation}.
+
+We define parametric function approximators:
+\begin{itemize}
+	\item $v_\theta \approx V^\pi$
+	\item $q_\theta \approx Q^\pi$
+\end{itemize}
+where the weights will be updated from samples (whole episodes, or transitions in an \textit{online} manner) using either MC or TD.
+
+
+
+
+\section{Approximate policy evaluation}
+
+\subsection{Monte Carlo}
+
+Given sample trajectories $(s_{0,i}, a_{0,i},r_{0,i},\ldots)$, we want the approximator to match the empirical returns
+\[
+	R_i = \sum_{t=0}^{T_i} \gamma^t r_{t,i} = v_\theta(s_{0,i}) + \epsilon_i
+\]
+
+Our objective is to minimize the empirical error
+\begin{equation}
+	\calL(\theta) = \frac{1}{n}
+	\sum_i {(v_\theta(s_{0,i}) - R_i)}^2
+\end{equation}
+
+
+\subsection{Approximate Temporal difference}
+
+Say we want to approximate the value function of a policy $\pi$.
+
+We target the bootstrapped returns
+\[
+	G_t = r_t + \gamma v_{\theta}(s_{t+1})
+\]
+and the parameter update becomes
+\begin{equation}
+	\theta \leftarrow \theta - \alpha_t (v_{\theta}(s_t)-G_t) \nabla_\theta v_\theta(s_t)
+\end{equation}
+
+This is a semi-gradient update (where we minimize the MSE for a sample and where the derivative wrt $v_\theta(s_{t+1})$ is ignored).
+
+\subsubsection{Linear TD}
+
+This is the simplest class of approximators: use a dictionary of functions $\{\phi_1, \ldots, \phi_d\}$. Then the function approximators read
+\[
+	v_\theta(s) = \phi(s)^\intercal \theta
+\]
+and in the finite state space case $|\calS| = S$ we can even write
+\[
+	\mathbf{V}_\theta = \Phi\theta
+\]
+where $\Phi = \begin{bsmallmatrix}\phi(s_1)^\intercal \\ \vdots \\ \phi(s_S)^\intercal \end{bsmallmatrix} \in\RR^{S\times d}$.
+
+After observing $(s_t,r_t,s_{t+1})$, the TD update boils down to
+\begin{equation}\label{eq:LinearTDupdate}
+	\theta \leftarrow \theta - \alpha_t (\phi(s_t)^\intercal \theta - G_t)\phi(s_t)
+\end{equation}
+
+
+\begin{prop}[Convergence of the linear TD approximator]
+If the policy we want to evaluate has a stationary distribution $\rho^\pi \in \RR^\calS$, and we denote $D = \diag(\rho^\pi)$ its matrix and $\Pi_D$ the projection with respect to the $D$-norm $x\mapsto x^\intercal D x$, then the linear TD converges to a parameter $\theta^*$ that satisfies
+\begin{equation}
+	\Phi\theta^* =
+	(\Pi_D \calT^\pi) \Phi\theta^*
+\end{equation}
+i.e. the optimal approximation $\mathbf{V}_{\theta^*} = \Phi\theta^*$ is a fixed point of the \textbf{\bluefont projected Bellman operator} $\Pi_D\calT^\pi$.
+
+The error reads
+\begin{equation}
+		L_D(\theta^*) \leq {\redfont \frac{1}{\sqrt{1-\gamma^2}}} {\bluefont \min_\theta L_D(\theta)}
+\end{equation}
+where $L_D$ is the expected loss wrt $D$.
+\end{prop}
+
+
+\section{Approximate policy optimization}
+
+In this learning case, as before for RL algorithms, we focus on the action value function $Q$, on which we define a parametric approximator.
+
+
+\subsection{Approximate Q-learning}
+
+We re-use the idea of Q-learning, that is trying to minimize the TD error upper bound \eqref{eq:QlearnTDerror}. Once again, we reformulate the function approximation step as targeting a bootstrap estimate of the value
+\[
+	G_t = r_t + \gamma \max_{a'\in\calA} q_\theta (s_{t+1}, a')
+\]
+In the \textbf{online} case, we target the bootstrapped loss
+\[
+	\calL(\theta) = {(q_\theta(s_t,a_t) - G_t)}^2
+\]
+and perform updates
+\begin{equation}
+	\theta \leftarrow \theta - \alpha_t (q_\theta(s_t, a_t) - G_t)\nabla_\theta q_\theta(s_t, a_t)
+\end{equation}
+
+Just as before, this is a semi-gradient update where we ignore the dependence of the bootstrapped return on $\theta$.
+
+
+
+
+\end{document}
