@@ -22,12 +22,12 @@ The \textbf{arms} of the bandit are the different possible actions $a$.
 
 \begin{defn}[Regret]
 The \emph{regret} of a trajectory is defined by the difference in total rewards between sticking to the best overall constant action and the actions actually taken:
-\[
+\begin{equation}\label{eq:BanditRegretDefn}
 	R_n = {\redfont \max_a} \EE\left[\sum_{t=1}^T r_t({\redfont a})\right]
 	- \EE\left[
 	\sum_{t=1}^T r_t({\bluefont a_t})
 	\right]
-\]
+\end{equation}
 \end{defn}
 
 Introducing the number of times action $a\in\calA$ has been taken
@@ -42,42 +42,308 @@ we can rewrite the regret as
 \end{aligned}
 \end{equation}
 and
-\begin{equation}
+\begin{equation}\label{eq:BanditRegretDelta}
 	R_n = \sum_{a\neq a^*} \EE[T_n(a)] {\redfont \Delta(a)} 
 \end{equation}
-where $\Delta(a) = \mu(a^*) - \mu(a)$.
+where $\Delta(a) = \mu(a^*) - \mu(a)$ is the \textbf{\bluefont gap} of arm $a$.
+
+A good algorithm for bandits has asymptotic regret
+\[
+	R_n = o(n)
+\]
+
 
 
 \subsection{Explore-then-Commit}
 
+The idea of this algorithm is to play a fixed number of rounds pulling the arms of the bandit at random, then computing which arm is the best, then observing the rewards we would get by playing the estimated best arm.
+
 
 \begin{algorithm}\caption{Explore-then-Commit}
-\KwIn{Number of actions $\tau$}
+\KwIn{Number of exploration steps $\tau$, total number of rounds $n > \tau$}
 \tcp{\bluefont Exploration phase}
-\For{$i=1,\ldots,n$}{
-	Take action $a_t\nu \mathcal{U}(\calA)$\tcp*{or round-robin}
+\For{$t=1,\ldots,\tau$}{
+	Take action $a_t\sim \mathcal{U}(\calA)$\tcp*{or round-robin}
 	Get reward $r_t\sim \nu(a_t)$\;
 }
 \ForEach{$a\in\calA$}{
-	$\widehat{\mu}(a) \leftarrow \frac{1}{T_\tau(a)}\sum_{s=1}^{\tau}r_s\mathds{1}_{\{a_s = a\}}$\tcp*{estimate statistics of the $\nu(a)$}
+	$\widehat{\mu}_\tau(a) \leftarrow \frac{1}{T_\tau(a)}\sum_{s=1}^{\tau}r_s\mathds{1}_{\{a_s = a\}}$\tcp*{estimate statistics of the $\nu(a)$}
 }
 \tcp{\bluefont Exploitation phase}
-\For{$i=1,\ldots,n$}{
-	Take action $a_t\nu \mathcal{U}(\calA)$\tcp*{or round-robin}
-	Get reward $r_t\sim \nu(a_t)$\;
+\For{$t=\tau+1,\ldots,n$}{
+	Take action $\widehat{a}^* = \argmax_a \widehat{\mu}_\tau(a)$ \tcp*{estimated best action}
+	Get reward $r_t\sim \nu(a^*)$\;
+}
+\end{algorithm}
+
+We have the following bound on the regret
+
+\begin{prop}
+When running the ETC algorithm with $\tau$ exploration steps and $n$ total rounds, we can bound the regret accumulated by
+\[
+	R_n \leq \sum_{a\neq a^*}\left(
+		\frac{\tau}{A}{\redfont\Delta(a)} + 2(n-\tau-1)\exp(-2\tau{\redfont\Delta(a)}^2)
+	\right)
+\]
+where $A = |\calA|$.
+\end{prop}
+
+This result can be shown using the Chernoff-Hoeffding inequality.
+
+
+\subsection{\boldmath $\epsilon$-greedy}
+
+The idea is to compromise between exploration and exploitation by choosing between taking the best action and taking a random action according to a probability parameter $\epsilon_t$.
+\begin{algorithm}\caption{$\epsilon$-greedy algorithm}
+\KwIn{Number of rounds $n$, sequence of $\epsilon_t$}
+\For{$t=1,\ldots,n$}{
+	Take action $a_t \sim \mathcal{U}(\calA)$ with proba. $\epsilon_t$, or $\argmax_a \widehat{\mu}_t(a)$ otherwise\;
+	Get reward $r_t \sim \nu(a_t)$\;
+	\tcp{Update statistics}
+	$T_t(a_t) = T_{t-1}(a_t) + 1$\;
+	$\widehat{\mu}_t(a_t) = \frac{1}{T_t(a_t)} \sum_{s=1}^{t}r_s\mathds{1}_{\{a_s=a_t\}}$\;
+}
+\end{algorithm}
+
+\begin{prop}
+	If $\epsilon_t = CA/{\Delta_{\min{}}n}$ where $\Delta_{\min{}} = \min_a \Delta(a)$, then the regret accumulated in the $\epsilon$-greedy algorithm is bounded by
+	\begin{equation}
+	R_n \leq O\left(
+		\frac{A\log(n)}{\Delta_{\min{}}}
+	\right)
+	\end{equation}
+\end{prop}
+
+
+\subsection{Exp3 (Softmax) algorithm}
+
+This algorithm is in the same vein and $\epsilon$-greedy, with a softmax exploration policy.
+\begin{algorithm}\caption{Exp3 algorithm}
+\KwIn{Number of rounds $n$, initial temperature $\tau$}
+\For{$t=1,\ldots,n$}{
+	Take action $\displaystyle a_t \sim \frac{\exp(\widehat{\mu}_t(a)/\tau)}{\sum_{a'} \exp(\widehat{\mu}_t(a')/\tau)}$\;
+	Get reward $r_t \sim \nu(a_t)$\;
+	\tcp{Update statistics}
+	$T_t(a_t) = T_{t-1}(a_t) + 1$\;
+	$\widehat{\mu}_t(a_t) = \frac{1}{T_t(a_t)} \sum_{s=1}^{t}r_s\mathds{1}_{\{a_s=a_t\}}$\;
+	Adjust temperature $\tau$\;
 }
 \end{algorithm}
 
 
-\begin{prop}
+\subsection{Lower bounds on the regret}
+
+
+\begin{prop}[Dependent on the problem]\label{prop:BanditLowerBoundPbDepend}
+Consider the class of MAB problems with $A$ Bernoulli arms, and consider a bandit algorithm that satisfies $\EE[T_n(a)] = o(n^\alpha)$ for any $\alpha > 0$ and any problem.
+
+For any problem with positive gaps ($\Delta(a) > 0$ for $a\neq a^*$), any algorithm has lower-bounded regret:
+\begin{equation}
+	\liminf_{n\to\infty} \frac{R_n}{\log(n)}
+	=
+	\sum_{a\neq a^*} \frac{\Delta(a)}{\mathrm{kl}(\mu(a), \mu(a^*))}
+\end{equation}
+\end{prop}
+
+\begin{itemize}
+	\item this means no bandit algorithm can have regret smaller than $\Omega(\log n)$
+	\item a fine-tuned $\epsilon$-greedy algorithm can be optimal
+\end{itemize}
+
+
+\begin{prop}[Independent on the problem]
+For any bandit algorithm and fixed $n$ there's a Bernoulli MAB problem s.t.
 \[
-	R_n \leq \sum_{a\neq a^*}\left(
-	\frac{\tau}{A}\Delta(a) + 2(n-\tau-1)\exp(-2\tau\Delta(a)^2)
-	\right)
+	R_n = \Omega(\sqrt{An})
 \]
 \end{prop}
 
 
+\section{Optimism in the face of Uncertainty}
+
+\subsection{Upper confidence bound: UCB}
+
+\begin{algorithm}\caption{Basic UCB}
+\KwIn{Number of rounds $n$}
+\For{$t=1,\ldots,n$}{
+	$\displaystyle B_t(a) = \widehat{\mu}_t(a) + \rho\sqrt{\frac{\log(1/\delta_t)}{T_t(a)}}$ \tcp*{confidence upper bound}
+	Take action $a_t = \argmax_a B_t(a)$\;
+	Get reward $r_t \sim \nu(a_t)$\;
+	\tcp{Update statistics}
+	$T_t(a_t) = T_{t-1}(a_t) + 1$\;
+	$\widehat{\mu}_t(a) = \frac{1}{T_t(a_t)}\sum_{s=1}^{t}r_s\mathds{1}_{\{a_s=a_t\}}$\;
+}
+\end{algorithm}
+
+\begin{prop}[Regret bounds]
+Consider a Bernoulli MAB with $A$ arms. For $\rho = 1$ and $\delta_t = 1/t$ and $n$ steps, we have regret
+\[
+	R_n = O\left(
+	\sum_{a\neq a^*} \frac{\log(n)}{\Delta(a)}
+	\right)
+\]
+With a 2-action MAB the worst-case (in terms of gaps $\redfont\Delta(a)$)
+\[
+	R_n = O(\sqrt{n\log(n)})
+\]
+\end{prop}
+
+
+\subsection{Improvements}
+
+\paragraph{UCB-V} We use the Bernstein bounds with an estimate of the standard deviation, $\widehat{\sigma}_t(a_t)$. The confidence upper bound becomes
+\[
+	B_t(a) = \widehat{\mu}_t(a)
+	+ \sqrt{\frac{2{\redfont \widehat{\sigma}_t(a_t)}\log t}{T_t(a)}}
+	+ \frac{8 \log t}{3 T_t(a)}
+\]
+The regret bound becomes
+\[
+	R_n \leq O\left( \frac{\redfont\sigma^2}{\Delta} \log(n) \right)
+\]
+
+
+\paragraph{KL-UCB} We use a tighter KL-divergence bound:
+\[
+	B_t(a) = \max\{
+		q\in [0,1] :
+		T_t(a)\mathrm{kl}(\widehat{\mu}_t(a), q) \leq \log t + c \log(\log t)
+	\}
+\]
+which has to be computed as the solution of a convex problem.
+
+
+\subsection{LinUCB}
+
+
+We model the rewards as
+\[
+	r_t(a) = \mu(a) + \eta_t = \phi(a)^\intercal \theta + \eta_t,
+\]
+with an \textbf{arm feature} $\phi(a) \in \RR^d$ and parameter $\theta\in\RR^d$, and noise $\EE[\eta_t] = 0$ (unbiased estimate). As the rewards and actions come in, we will update the best-fit estimate of the parameter vector $\theta$.
+
+\begin{remark}
+In this setting, since the reward model is unbiased, we can write the regret as
+\begin{equation}
+	R_n = \EE\left[
+	\sum_{t=1}^n (\phi(a^*)-\phi(a_t))^\intercal \theta
+	\right]
+\end{equation}
+\end{remark}
+
+The \textbf{least-squares} estimate of $\theta$ at time $t$ solves
+\begin{equation}\label{eq:LinUCBleastSq}
+	{\redfont \widehat{\theta}_t} =
+	\argmin_\theta \frac{1}{t} \sum_{s=1}^t \left(r_s - \phi(a_s)^\intercal\theta\right)^2 + \lambda \|\theta\|^2
+\end{equation}
+Here, the regularization parameter $\lambda > 0$ might be necessary if the matrix $[\phi(a_s)]_s$ is not full-rank. The closed-form solution is
+\begin{equation}
+	{\redfont\widehat{\theta}_t} = A_t^{-1} b_t
+\end{equation}
+where
+\[
+	A_t \coloneqq \sum_{s=1}^t \phi(a_s)\phi(a_s)^\intercal + \lambda I  \text{ and }
+	b_t = \sum_{s=1}^t \phi(a_s) r_s
+\]
+
+The estimate of the value (mean reward) of the action $a\in\calA$ is written
+\begin{equation}
+	\widehat{\mu}_t(a) = \phi(a)^\intercal {\redfont \widehat{\theta}_t}
+\end{equation}
+
+\begin{prop}[Error bounds for LinUCB]
+	If $\eta_t$ is sub-Gaussian (i.e. $\PP(|\eta_t| > t) \leq Be^{-vt^2}$ for some constants $B,v>0$), and the arm features are uniformly bounded:
+	\[
+		\|\phi(a)\|_2 \leq L\quad \forall a\in\calA
+	\]
+	then for all $a$
+	\[
+		\left|\widehat{\mu}_t(a) - \mu(a) \right|
+		\leq {\bluefont\alpha_{t,\delta}} \| \phi(a) \|_{A_t^{-1}}
+	\]
+	with probability $1-\delta$, where we denote
+	\begin{equation}\label{eq:LinUCBalpha}
+		{\bluefont\alpha_{t,\delta}} = B \sqrt{d \log\left(\frac{1+tL/\lambda}{\delta}\right)} + \sqrt{\lambda}\|\widehat{\theta}_t\|
+	\end{equation}
+	and $\|\phi(a)\|_{A_t^{-1}} = \sqrt{\phi(a)^\intercal A_t^{-1}\phi(a)}$ is the $A_t^{-1}$-norm.
+\end{prop}
+
+The previous proposition suggests the following confidence upper bound (at level $1-\delta$) for the adapted LinUCB algorithm:
+\begin{equation}\label{eq:LinUCBconfupperbound}
+	B_t(a) = \widehat{\mu}_t(a) + {\bluefont\alpha_{t,\delta}}\|\phi(a_t)\|_{A_t^{-1}}
+\end{equation}
+where $\alpha_{t,\delta}$ is defned as before \eqref{eq:LinUCBalpha}.
+
+\begin{algorithm}\caption{LinUCB}
+\For{$t=1,\ldots,n$}{
+	$B_t(a) = \widehat{\mu}_t(a) + \alpha_t \|\phi(a)\|_{A_t^{-1}}$\;
+	Take action $a_t \in \argmax_a B_t(a)$\;
+	Get reward $r_t \sim \phi(a_t)^\intercal\widehat{\theta}_t + \eta_t$\;
+	$A_{t+1} = A_t + \phi(a_t)\phi(a_t)^\intercal$\tcp*{can use efficient formula to compute inverse}
+	$\widehat{\theta}_{t+1} = A_{t+1}^{-1}b_{t+1}$\;
+}
+\end{algorithm}
+
+\begin{prop}[Regret bound for LinUCB]
+If LinUCB is run with $\delta_t=1/t$ for $n$ steps, the regret is bounded by
+\[
+	R_n = O(d\sqrt{n\log(n)})
+\]
+\end{prop}
+
+This bound does not depend on the number of actions, only their feature dimension -- this can be useful if $A$ is much greater than the embedding $d$.
+
+
+
+\section{Bayesian bandits and Thompson Sampling}
+
+Up until now, we have made no assumptions on the rewards except for their boundedness.
+We can exploit information we get about the rewards using a Bayesian setting:
+\begin{itemize}
+	\item Use a conjugate prior (initial \textit{belief}) on $\nu$.
+	\item Update the posterior $\nu(a) | (a_1, r_1,\ldots)$ as we pull the arms and get rewards.
+	\item Use the posterior distribution to guide exploration.
+\end{itemize}
+
+For instance, if the rewards are Bernoulli distributed with parameter $\mu(a)$, we can use the conjugate Beta prior
+\[
+	\mu(a) \sim \mathrm{Beta}(\alpha_0, \beta_0).
+\]
+An appropriate algorithm would be: as we observe the stream of action-reward, we update the posterior $\mu(a)$ to $\mathrm{Beta}(\alpha_t(a), \beta_t(a))$ with $\alpha, \beta$ being the counts of the values of $r_t \in \{0,1\}$:
+\begin{subequations}
+\begin{align}
+	\alpha_t(a) &= \alpha_0
+	+ \sum_{s=1}^t \mathds{1}_{\{a_t=a, r_t=1 \}}  \\
+	\beta_t(a) &= \beta_0
+	+ \sum_{s=1}^t \mathds{1}_{\{a_t=a, r_t=0 \}}
+\end{align}
+\end{subequations}
+
+
+
+\begin{algorithm}\caption{Thompson Sampling (Bernoulli-Beta case)}
+\KwIn{Number of rounds $n$, initial prior parameters $(\alpha_0,\beta_0)$}
+\For{$t=1,\ldots,n$}{
+	$B_t(a) \sim \mathrm{Beta}(\alpha_t(a), \beta_t(a))$\tcp*{sample confidence upper bound}
+	Take action $a_t = \argmax_a B_t(a)$\;
+	Get reward $r_t \sim \nu(a_t)$\;
+	\tcp{Update the prior statistics}
+	$\alpha_t(a_t) = \alpha_{t-1}(a_t) + 1 - r_t$\;
+	$\beta_t(a_t) = \beta_{t-1}(a_t) + r_t$\;
+}
+\end{algorithm}
+
+\begin{prop}[Regret of Thompson sampling]
+If TS is run with $n$ steps and $\delta_t = 1/t$, then the regret is bounded by
+\begin{equation}
+	R_n = O\left(
+	(1+\epsilon) \sum_{a\neq a^*}
+	\frac{\Delta(a) \log(n)}{\mathrm{kl}(\mu(a), \mu(a^*))}
+	\right)
+\end{equation}
+\end{prop}
+
+This matches the lower bound of \cref{prop:BanditLowerBoundPbDepend}.
 
 
 

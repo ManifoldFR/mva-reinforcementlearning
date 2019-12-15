@@ -381,6 +381,87 @@ An efficient algorithm is
 for $i=0,\ldots,B-2$ and $G_{B-1} = r_{B-1} + \gamma v_B$. The $\TD(0)$ errors are $\delta_i = \widehat{G}_i - v_i$.
 
 
+\section{Conservative approaches}
+
+\subsection{Surrogate loss, locally monotone optimization}
+
+Given a policy $\pi$, we want to use the past samples to get to a better policy $\pi'$. However, there is no guarantee we can trust the behavior in these samples.
+
+We define the \textbf{\bluefont surrogate loss}
+\begin{equation}
+	L_\pi(\pi') = J(\pi) + \sum_{s\in\calS} d^\pi(s) \sum_{a\in\calA} \pi'(s,a)	A^\pi(s,a)
+\end{equation}
+
+The gradient of $L_\pi(\pi_\theta)$ wrt $\theta$ is equal to the policy gradient \eqref{eq:PolicyGradient}. $L_\pi$ is a local approximation of the policy performance $J$ in the neighborhood of $\pi$.
+
+We can maximize a lower bound on $L_\pi$ which is still a local approximation of $J$ using the total variation:
+
+\paragraph{Policy improvement scheme} Given the current policy $\pi_k$, we get the next one by solving
+\[
+	\max_{\pi'} L_{\pi_k}(\pi') - {\redfont C}
+	\EE_{s\sim d^{\pi_k}}\left[
+	D_{\mathrm{TV}}(\pi' \| \pi_k)[s]
+	\right]
+\]
+where ${\redfont C} > 0$ is a constant, and we search $\pi'$ in our search space (for instance, parametric). The maximum we get is positive and satisfies
+\[
+	J(\pi') - J(\pi) \geq
+	\max_{\pi'} \left\{ L_{\pi_k}(\pi') - {\redfont C}
+	\EE_{s\sim d^{\pi_k}}\left[
+	D_{\mathrm{TV}}(\pi' \| \pi_k)[s]
+	\right] \right\}
+	\geq 0
+\]
+
+The \textbf{\redfont maximization problem might be too difficult} due to how the total variation distance $D_\mathrm{TV}$ is defined. We can relax it by lower-bounding again, using Pinkser's inequality to see that
+\[
+	D_\mathrm{TV}(\pi'\|\pi) \leq \sqrt{2\mathrm{KL}(\pi'\|\pi)}.
+\]
+
+
+\subsection{Natural Policy Gradient (NPG)}
+
+The idea is to use the gradient of the ``statistical manifold" $\calM = \{\pi_\theta:\theta\in\Theta\}$ we search our policies in rather than the parametric gradient (using the coordinates $\Theta \subseteq \RR^d$).
+
+This gradient is defined using the Fisher information metric $d_{\pi}:v \mapsto v^\intercal F(\pi) v$ on the manifold. The gradient of a function $h$ defined on $\calM$ at a point $\pi_\theta$ can be expressed in terms of its parametric gradient as
+\[
+	\nabla_\calM h(\pi_\theta) = F(\pi_\theta)^{-1}\nabla_\theta h(\pi_\theta)
+\]
+
+The update step becomes
+\[
+\begin{aligned}
+	\pi_{k+1} &= \argmax_{\pi'} L_{\pi_k}(\pi')  \\
+	& \suchthat \ \overline{\mathrm{KL}}(\pi'\|\pi) = \EE_{s\sim d^\pi}[\mathrm{KL}(\pi'\|\pi_k)] \leq \delta
+\end{aligned}
+\]
+we solve this approximately by
+\[
+\begin{aligned}
+	\theta_{k+1} &= \argmax_\theta g^\intercal (\theta - \theta_k)  \\
+	& \suchthat \frac{1}{2}(\theta-\theta_k)^\intercal F(\pi_k) (\theta - \theta_k) \leq \delta
+\end{aligned}
+\]
+where $g = \nabla_\theta L_{\pi_k}(\pi_\theta)$ and $F$ is the Fisher information matrix. This is solved by
+\begin{equation}\label{eq:NPGupdate}
+	\theta_{k+1} = \theta_k + \sqrt{\frac{2\delta}{g^\intercal F(\theta_k)^{-1}g}} F(\theta_k)^{-1}g
+\end{equation}
+
+
+\textbf{\redfont Problem}: computing $F(\theta_k)^{-1}$ is too expensive in large dimensions. A solution is to use the \textbf{conjugate gradient} to compute $F(\theta_k)^{-1}g$
+\begin{itemize}
+	\item[\textrightarrow] this is called \textbf{\bluefont Truncated Natural Policy Gradient} (TNPG)
+\end{itemize}
+
+
+\paragraph{Trust Region Policy Optimization (TRPO)} We actually enforce the KL constraint which might violated in the NPG updates, and force improvement of the surrogate loss (make it $>0$).
+\begin{itemize}
+	\item[\textrightarrow] use \textbf{backtracking line search until the constraints $L_{\pi_k}(\pi') > 0$ and $\overline{\mathrm{KL}}(\pi'\|\pi_k) \leq \delta$ are satisfied}
+\end{itemize}
+
+
+
+
 
 
 \end{document}
