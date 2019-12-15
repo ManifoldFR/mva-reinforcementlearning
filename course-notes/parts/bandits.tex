@@ -13,10 +13,69 @@ We can also choose the next action randomly in the action space $\calA$, but con
 
 \section{Multi-Armed Bandits}
 
-A \textit{multi-armed bandit} is similar to an MDP, except there is only a single state: we \textit{take an action} $a\in\calA$ and \textit{get a reward} $r(a)$.
+A \textit{multi-armed bandit} is similar to an MDP, except there is only a single state: we \textit{take an action} $a\in\calA$ and \textit{get a reward} $r(a)$ distributed according to $\nu(a)$ with $\mu(a) = \EE[r(a)]$. The objective is to maximize the expected sum of rewards
+\[
+	\EE\left[ \sum_{t=1}^T r_t(a) \right]
+\]
 
 The \textbf{arms} of the bandit are the different possible actions $a$.
 
+\begin{defn}[Regret]
+The \emph{regret} of a trajectory is defined by the difference in total rewards between sticking to the best overall constant action and the actions actually taken:
+\[
+	R_n = {\redfont \max_a} \EE\left[\sum_{t=1}^T r_t({\redfont a})\right]
+	- \EE\left[
+	\sum_{t=1}^T r_t({\bluefont a_t})
+	\right]
+\]
+\end{defn}
+
+Introducing the number of times action $a\in\calA$ has been taken
+\[
+	T_n(a) = \sum_{t=1}^{n} \mathds{1}_{\{a_t = a\}},
+\]
+we can rewrite the regret as
+\begin{equation}
+\begin{aligned}
+	R_n &= \max_a n\mu(a) - \sum_{a\in\calA} \EE[T_n(a)] \mu(a) \\
+	&= \sum_{a\neq a^*} \EE[T_n(a)] (\mu(a^*) - \mu(a))
+\end{aligned}
+\end{equation}
+and
+\begin{equation}
+	R_n = \sum_{a\neq a^*} \EE[T_n(a)] {\redfont \Delta(a)} 
+\end{equation}
+where $\Delta(a) = \mu(a^*) - \mu(a)$.
+
+
+\subsection{Explore-then-Commit}
+
+
+\begin{algorithm}\caption{Explore-then-Commit}
+\KwIn{Number of actions $\tau$}
+\tcp{\bluefont Exploration phase}
+\For{$i=1,\ldots,n$}{
+	Take action $a_t\nu \mathcal{U}(\calA)$\tcp*{or round-robin}
+	Get reward $r_t\sim \nu(a_t)$\;
+}
+\ForEach{$a\in\calA$}{
+	$\widehat{\mu}(a) \leftarrow \frac{1}{T_\tau(a)}\sum_{s=1}^{\tau}r_s\mathds{1}_{\{a_s = a\}}$\tcp*{estimate statistics of the $\nu(a)$}
+}
+\tcp{\bluefont Exploitation phase}
+\For{$i=1,\ldots,n$}{
+	Take action $a_t\nu \mathcal{U}(\calA)$\tcp*{or round-robin}
+	Get reward $r_t\sim \nu(a_t)$\;
+}
+\end{algorithm}
+
+
+\begin{prop}
+\[
+	R_n \leq \sum_{a\neq a^*}\left(
+	\frac{\tau}{A}\Delta(a) + 2(n-\tau-1)\exp(-2\tau\Delta(a)^2)
+	\right)
+\]
+\end{prop}
 
 
 

@@ -51,6 +51,8 @@ and the parameter update becomes
 
 This is a semi-gradient update (where we minimize the MSE for a sample and where the derivative wrt $v_\theta(s_{t+1})$ is ignored).
 
+This principle can once again be extended to $\TD(\lambda)$ differences by using eligibility traces.
+
 \subsubsection{Linear TD}
 
 This is the simplest class of approximators: use a dictionary of functions $\{\phi_1, \ldots, \phi_d\}$. Then the function approximators read
@@ -106,6 +108,100 @@ and perform updates
 \end{equation}
 
 Just as before, this is a semi-gradient update where we ignore the dependence of the bootstrapped return on $\theta$.
+
+\textbf{\redfont Unfortunately, this bootstrapping method might diverge}, even with simple approximators.
+This makes Deep Q-learning (DQN) practically difficult.
+
+There are \textbf{\redfont several problems} to overcome:
+\begin{itemize}
+	\item \textbf{correlated samples} because we update sequentially
+	\item \textbf{oscillations} due to getting the $Q$-value from the policy and vice-versa
+	\item the \textbf{scale} of the actual optimal $Q$ values being \textbf{unknown}
+	\item an \textbf{over-estimation effect} due to always choosing the maximizing action to adjust the parameter $\theta$
+\end{itemize}
+
+These are all problems DeepMind encountered when designing an algorithm to play Space Invaders, as detailed in \fullcite{DBLP:journals/corr/MnihKSGAWR13}. The authors came up with ways of solving them:
+\begin{itemize}\bluefont
+	\item \textbf{experience replay}
+	\item \textbf{target networks}
+	\item \textbf{reward normalization}
+	\item \textbf{double Q-learning}
+\end{itemize}
+
+\subsection{Experience replay}
+
+The idea is to store the transitions $e_t = (s_t, a_t, r_t, s_{t+1})$ we observe when playing the game in an \textbf{experience buffer}.
+
+\begin{algorithm}
+\caption{Experience replay (episodic)}
+\For{$i=1,\ldots,n$}{
+	\Repeat{until termination}{
+		Take action $a_{t,i}$\;
+		Get reward, next state $(r_{t,i}, s_{t+1,i})$\;
+		Store the transition $e_{t,i} = (s_{t,i},a_{t,i},r_{t,i},s_{t+1,i})$ in buffer $\mathcal{D}$\;
+		$t \leftarrow t+1$\;
+		\textbf{\boldmath Update $\theta$ based on a mini-batch $\mathcal{D}_m\subset\mathcal{D}$}\;
+	}
+}
+\Return Policy $\pi^*(s) \in \argmax_a q_\theta(s,a)$\;
+\end{algorithm}
+
+The update on the mini-batch can be a gradient mini-batch using the method previously discussed (bootstrapping on the transitions from the mini-batch), or we can use the target network:
+
+\subsection{Target networks}
+
+The idea of using a target network $q_{\bar\theta}$ is to \textbf{stall} the evolution of the main network we want to learn with by making it \textbf{use a return bootstrapped using the target network}:
+\[
+	\bar G_t = r_t + \gamma \max_{a'\in\calA} {\bluefont q_{\bar\theta}(s_{t+1}, a')}.
+\]
+
+\paragraph{Mini-batch update} The main network updates on the mini-batch $\mathcal{D}_m$ by minimizing the loss
+\begin{equation}
+	\calL_{\mathcal{D}_m}(\theta) =
+	\EE_{(s_i,a_i,r_i,s_{i+1})}
+	\left[
+	(q_\theta(s_i, a_i) - {\bluefont \bar{G}_i})^2
+	\right]
+\end{equation}
+
+
+
+This leads to the following algorithm:
+\begin{algorithm}
+\caption{Experience replay with target network}
+\KwIn{Initial parameters $\theta$, $\bar{\theta}$, target update interval $C$}
+\For{$i=1,\ldots,n$}{
+	Set initial state $s_{0,i}$\;
+	\Repeat{until termination}{
+		Take action $a_{t,i}$\;
+		Get reward, next state $(r_{t,i}, s_{t+1,i})$\;
+		Store the transition $e_{t,i} = (s_{t,i},a_{t,i},r_{t,i},s_{t+1,i})$ in buffer $\mathcal{D}$\;
+		$t \leftarrow t+1$\;
+		Update network $q_\theta$ from mini-batch using target-bootstrapped returns\;
+		Every $C$ steps: $\bar{\theta} \leftarrow \theta$\tcp*{update the target network}
+	}
+}
+\Return Policy $\pi^*(s) \in \argmax_a q_\theta(s,a)$\;
+\end{algorithm}
+
+
+
+\subsection{Stabilization with double Q-learning}
+
+We tame the over-estimation effect by using \textbf{two} approximators with parameters $\theta_1, \theta_2$. The update procedure is now
+\begin{itemize}
+	\item Let ${\bluefont a_2^*} = \argmax_a q_{{\bluefont \theta_2}}(s_{t+1}, a)$
+	\item Set the return bootstrap
+	${\bluefont G_t} = r_t + \gamma q_{\theta_1}(s_{t+1}, {\bluefont a_2^*})$
+	\item Update: 
+	\[
+		\theta_1 \leftarrow \theta_1 - \alpha_t (q_{\theta_1}(s_t,a_t) - G_t) \nabla_{\theta_1}q_{\theta_1}(s_t, a_t)
+	\]
+	\item Repeat by alternating $\theta_1$ and $\theta_2$.
+\end{itemize}
+
+
+
 
 
 
