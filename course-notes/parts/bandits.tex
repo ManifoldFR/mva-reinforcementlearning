@@ -251,8 +251,8 @@ The estimate of the value (mean reward) of the action $a\in\calA$ is written
 	\widehat{\mu}_t(a) = \phi(a)^\intercal {\redfont \widehat{\theta}_t}
 \end{equation}
 
-\begin{prop}[Error bounds for LinUCB]
-	If $\eta_t$ is sub-Gaussian (i.e. $\PP(|\eta_t| > t) \leq Be^{-vt^2}$ for some constants $B,v>0$), and the arm features are uniformly bounded:
+\begin{prop}[Error bounds]
+	If the noise $\eta_t$ is $\sigma^2$-sub-Gaussian (i.e. $\PP(|\eta_t| > t) \leq Be^{-\sigma^2t^2}$ for some constants $B,v>0$), and the arm features are uniformly bounded:
 	\[
 		\|\phi(a)\|_2 \leq L\quad \forall a\in\calA
 	\]
@@ -263,7 +263,7 @@ The estimate of the value (mean reward) of the action $a\in\calA$ is written
 	\]
 	with probability $1-\delta$, where we denote
 	\begin{equation}\label{eq:LinUCBalpha}
-		{\bluefont\alpha_{t,\delta}} = B \sqrt{d \log\left(\frac{1+tL/\lambda}{\delta}\right)} + \sqrt{\lambda}\|\widehat{\theta}_t\|
+		{\bluefont\alpha_{t,\delta}} = \sigma \sqrt{d \log\left(\frac{1+tL/\lambda}{\delta}\right)} + \sqrt{\lambda}\|\widehat{\theta}_t\|
 	\end{equation}
 	and $\|\phi(a)\|_{A_t^{-1}} = \sqrt{\phi(a)^\intercal A_t^{-1}\phi(a)}$ is the $A_t^{-1}$-norm.
 \end{prop}
@@ -280,6 +280,7 @@ where $\alpha_{t,\delta}$ is defned as before \eqref{eq:LinUCBalpha}.
 	Take action $a_t \in \argmax_a B_t(a)$\;
 	Get reward $r_t \sim \phi(a_t)^\intercal\widehat{\theta}_t + \eta_t$\;
 	$A_{t+1} = A_t + \phi(a_t)\phi(a_t)^\intercal$\tcp*{can use efficient formula to compute inverse}
+	$b_{t+1} = b_t + \phi(a_{t})r_{t}$\;
 	$\widehat{\theta}_{t+1} = A_{t+1}^{-1}b_{t+1}$\;
 }
 \end{algorithm}
