@@ -132,7 +132,7 @@ Strictly speaking, we are taking a maximal policy with respect to a partial orde
 	\begin{equation}\label{eq:ValueOptimalBellmanEq}
 	V^*(s) = \max_{a\in\calA}
 	\left\{
-	r(s,a) + \sum_{s'\in\calS} p(s,a,s')V^*(s')
+	r(s,a) + \gamma \sum_{s'\in\calS} p(s,a,s')V^*(s')
 	\right\}
 	\end{equation}
 \end{prop}
@@ -295,6 +295,7 @@ The stopping condition for the iterations can either be that a fixed number of i
 
 \paragraph{Complexity} The temporal complexity of VI is $O(KS^2A)$ -- indeed the complexity of applying the Bellman operator is $O(S^2A)$
 
+\paragraph{{\bluefont Pros}/{\redfont Cons}} Each iteration is very efficient \textbf{but} convergence is asymptotic
 
 
 \subsubsection{Variants}
@@ -325,7 +326,7 @@ To decide when to stop, we can use a set number of iterations, or use a $\epsilo
 	\caption{Policy iteration}
 	\KwIn{Initial stationary policy $\pi_0$}
 	\ForEach{$k=1,\ldots,K$}{
-		Compute the value function $Q^{\pi_k}$\tcp*{using the Bellman eq.}
+		Compute the value function $Q^{\pi_k}$\tcp*{e.g. using the Bellman eq.}
 		Define $\pi_{k+1}(s) \in \argmax_{a\in\calA} Q^{\pi_k}(s,a)$\;
 	}
 	\Return Policy $\pi_K$\;
@@ -334,15 +335,31 @@ To decide when to stop, we can use a set number of iterations, or use a $\epsilo
 
 Policy iteration can also be performed for other improvement algorithms. For instance, \textbf{$\boldsymbol\epsilon$-greedy improvement} performs greedy updates at each state probabilistically, taking the greedy with probability $1-\epsilon$ and otherwise taking a random action.
 
+
 In practice, the value function evaluation step can be done in two sub-steps:
 \begin{enumerate}
-	\item evaluate $V^\pi$ using the Bellman equation, in matrix form $(I-\gamma\mathbf{P}^\pi)\mathbf{V}^\pi = \mathbf{R}^\pi$
+	\item evaluate $V^\pi$, for instance by solving the Bellman equation in matrix form $(I-\gamma\mathbf{P}^\pi)\mathbf{V}^\pi = \mathbf{R}^\pi$
 	\item compute $Q^\pi(s,a) = r(s,a) + \gamma \sum_{s'} p(s,a,s')V^\pi(s')$ or in matrix form
 	\[
 		\mathbf{Q}^\pi_{\cdot, a} = \mathbf{R}^a + \mathbf{P}^a \mathbf{V}^\pi
 	\]
 	where $\mathbf{Q}^\pi = (Q^\pi(s,a))_{s,a}$, $\mathbf{R}^a = (r(s,a))_s$, $\mathbf{P}^a = (p(s,a,s'))_{s,s'}$.
 \end{enumerate}
+
+\paragraph{Complexity} The complexity of policy iteration is dependent on the evaluation of $V^\pi$.
+\begin{itemize}
+	\item \textbf{Using the Bellman equation} involves solving a linear system yielding $\mathcal O(S^3)$ at each step
+	\item \textbf{Value iteration} $V_{k+1} = \calT^\pi V_k$ converges in $\mathcal{O}\left(S^2\frac{\log(1/\epsilon)}{\log(1/\gamma)}\right)$ to an $\epsilon$-approximation.
+	\item \textbf{Monte-Carlo evaluation} depends on the number and length of trajectories simulated, with the MC error in each step being $\mathcal{O}\left(\frac{r_{\max}}{1-\gamma}\sqrt{\frac{1}{n}}\right)$.
+\end{itemize}
+The number of iterations required is bounded as
+\[
+	K = \mathcal{O}\left(
+	\frac{SA}{1-\gamma}\log\frac{1}{1-\gamma}
+	\right)
+\]
+
+\paragraph{{\bluefont Pros}/{\redfont Cons}} Policy evaluation converges in a small number of iterations \textbf{but} requires policy evaluation (might be expensive!)
 
 
 
@@ -417,36 +434,37 @@ Incremental MC is also called \textbf{one-step temporal difference} $\TD(1)$. It
 
 \section{Temporal difference (TD) estimation}
 
-\subsection{Using the Bellman equation: $\mathsf{TD}(0)$ estimation}
+\subsection{\boldmath Using the Bellman equation: $\mathsf{TD}(0)$ estimation}
 
-The real value function $V^\pi$ satisfies the Bellman equation. This means that the \textbf{\bluefont temporal difference error} of a good estimate $\widehat{V}^\pi$ of $V^\pi$, defined after each transition and reward ${\redfont s_t,r_t,s_{t+1}}$
+The real value function $V^\pi$ satisfies the Bellman equation. This means that the \textbf{\bluefont temporal difference error} of an estimate $\widehat{V}^\pi$ of $V^\pi$, defined after each transition and reward ${\redfont s_t,r_t,s_{t+1}}$
 \begin{equation}\label{eq:ValueTDerror}
 	{\bluefont\delta_t} = {\redfont r_t} + \gamma \widehat{V}^\pi({\redfont s_{t+1}}) - \widehat{V}^\pi({\redfont s_t}),
 \end{equation}
-should be small.
+should be small for the estimator $\widehat{V}^\pi$ to be good. Indeed, the quantity $\delta_t$ is a (biased) estimate of so-called Bellman error, which measures how the discrepancy between $\widehat{V}^\pi(s)$ at some state $s$ and the Bellman image $\calT^\pi \widehat{V}(s)$ -- these quantities should be equal.
 
-The $\TD(0)$ updates are performed as
+To learn the estimator $\widehat{V}^\pi$, $\TD(0)$ updates are performed as
 \begin{align*}
 	\widehat{V}^\pi(s_t) &\leftarrow
 	\widehat{V}^\pi(s_t) + \alpha_t {\bluefont \delta_t} \\
 	&= (1 - \alpha_t)\widehat{V}^\pi({\redfont s_t}) + \alpha_t ({\redfont r_t} + \gamma \widehat{V}^\pi({\redfont s_{t+1}}))
 \end{align*}
+Even though this method introduces \textbf{bias}, it has \textbf{less variance} than Monte Carlo.
+This scheme \textbf{does not} require the entire trajectory to be known to perform an update, allowing for fully \textbf{\bluefont online learning}.
 
-\begin{remark}
-	Introducing the \textbf{bootstrapped return} of the trajectory
-	\[
-		G_t = r_t + \gamma\widehat{V}^\pi(s_{t+1}),
-	\]
-	we can rewrite the update as
-	\[
-		\widehat{V}^\pi(s_t) \leftarrow \widehat{V}^\pi(s_t) + \alpha_t (G_t - \widehat{V}^\pi(s_t))
-	\]
-\end{remark}
+
+\paragraph{Returns in TD} Introducing the \textbf{bootstrapped return} of the trajectory
+\[
+	G_t = r_t + \gamma\widehat{V}^\pi(s_{t+1}),
+\]
+we can rewrite the TD error as $\delta_t = G_t - \widehat{V}^\pi(s_t)$, and the update as
+\[
+	\widehat{V}^\pi(s_t) \leftarrow \widehat{V}^\pi(s_t) + \alpha_t (G_t - \widehat{V}^\pi(s_t))
+\]
 
 
 \paragraph{Choosing the learning rate} For incremental MC, a natural learning rate that works was $\alpha_n = 1/n$. For this temporal difference update scheme, it can be shown that we can use an \textbf{adaptive state-dependent learning rate} $\alpha_t = \alpha(s_t)$:
 \begin{prop}\label{prop:ValueTD0learningRate}
-	Set the learning rate to $\alpha_t = \alpha(N_t(s_t))$ where $N_t(s)$ is the number of times state $s\in\calS$ has been visited before time $t$. If we suppose $N_t(s) \to \infty$ (every state is visited infinitely many times), then the conditions
+	Set the learning rate to $\alpha_t = \alpha(N_t(s_t))$ where $N_t(s)$ is the number of times state $s\in\calS$ has been visited before time $t$. If we suppose $N_t(s) \to \infty$ (every state is visited infinitely many times), then the \textbf{Robbins-Monro} conditions
 	\begin{equation}
 	\sum_{n=0}^{\infty} \alpha(n) = \infty \quad
 	\sum_{n=0}^{\infty} \alpha(n)^2 < \infty
@@ -454,10 +472,11 @@ The $\TD(0)$ updates are performed as
 	lead to convergence of the scheme.
 \end{prop}
 
-This scheme doesn't require the entire trajectory to be known to perform an update, allowing for fully online learning.
 
 
-\subsection{$\boldsymbol{n}$-step temporal difference (see \cite[chap.~7]{Sutton1998})}
+\subsection{\boldmath$n$-step temporal difference \cite[chap.~7]{Sutton1998}}
+
+What if we want to use a less biased estimate of the Bellman error?
 
 The idea is to use several rewards to compute the temporal difference: the $n$-step $\TD(n)$ reads
 \begin{equation}
@@ -466,10 +485,20 @@ The idea is to use several rewards to compute the temporal difference: the $n$-s
 	+ \gamma^n \widehat{V}^\pi(s_{t+n}) - \widehat{V}^\pi(s_t)
 \end{equation}
 The $Q$-function update is then done as usual.
+This can be rewritten using the \textbf{\boldmath $n$-step return}:
+\begin{equation}\label{eq:nStepReturn}
+	{\bluefont G_{t:t+n}} = \sum_{k=0}^{n-1} \gamma^k r_{t+k}
+\end{equation}
+leading to
+\begin{equation}
+\boxed{
+	{\bluefont \delta_t^{(n)}} =
+	{\bluefont G_{t:t+n}} - \widehat{V}^\pi(s_t)
+}\end{equation}
 
 
 
-\subsection{Temporal difference $\TD(\lambda)$}
+\subsection{\boldmath Temporal difference $\TD(\lambda)$}
 
 These schemes average between incremental MC and $\TD(n)$. The scheme is defined for $0 < \lambda < 1$ as:
 \begin{equation}
@@ -477,8 +506,13 @@ These schemes average between incremental MC and $\TD(n)$. The scheme is defined
 \end{equation}
 where ${(\delta_{t'})}_{t'}$ is the sequence of temporal differences errors of the trajectory.
 
+The exact scheme \textit{does} require the entire trajectory be known before performing an update. This can be seen more explicitly by introducing the \textbf{\boldmath $\lambda$-return}
+\begin{equation}
+	{\bluefont G_t^\lambda} = (1-\lambda)\sum_{n=1}^\infty G_{t:t+n}
+\end{equation}
+In practice, this condition of knowing everything about the trajectory can be relaxed by using \textbf{function approximators}.
 
-This scheme \textit{does} require the entire trajectory to be known before performing updates, but it re-discounts them using the parameter $\lambda$.
+
 
 
 \subsubsection{Eligibility traces}
