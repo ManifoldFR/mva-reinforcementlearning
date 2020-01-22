@@ -55,12 +55,19 @@ which is a fixed-point condition.
 
 The Bellman equation can be used to \textit{evaluate} a policy $\pi$, that is compute its associated value function $V^\pi$.
 
-Its fixed-point structure can be reformulated in terms of an operator on a function space, called the \textbf{Bellman operator}:
+\paragraph{The Bellman operator} Its fixed-point structure can be reformulated in terms of an operator on a function space, called the \textbf{\bluefont Bellman operator}:
 \[
-\calT^\pi v(s) \coloneqq
-r(s,\pi(s)) + \gamma\sum_{s'\in\calS}p(s,\pi(s),s') v(s')
+	\calT^\pi v(s) \coloneqq
+	r(s,\pi(s)) + \gamma\sum_{s'\in\calS}p(s,\pi(s),s') v(s')
 \]
-which can be shown to be contractant, ensuring the existence of a solution.
+which can be shown to be contractant, ensuring the existence of a solution. In fact, it has the following \textbf{four properties}:
+\begin{itemize}
+	\item \textbf{monotonicity}: if $V_1\leq V_2$, then $\calT^\pi V_1 \leq \calT^\pi V_2$
+	\item \textbf{offset}: for any $c\in\RR$, $\calT^\pi (V + cI) = \calT^\pi V + \gamma cI$
+	\item \textbf{contractive}:
+	$\|\calT^\pi V_1 - \calT^\pi V_2\|_\infty \leq \gamma \|V_1 - V_2\|_\infty$
+	\item \textbf{unique fixed point}: $V^\pi$ is the unique fixed point of the Bellman operator $\calT^\pi$.
+\end{itemize}
 
 
 \begin{remark}
@@ -85,7 +92,18 @@ which can be shown to be contractant, ensuring the existence of a solution.
 
 
 In a finite setting with small state and action spaces, it possible to solve the Bellman equation directly by Gaussian elimination on the corresponding matrices and vectors.
-
+Indeed, denoting
+\[
+	\mathbf{P}^\pi =(p(s,\pi(s),s'))_{s,s'\in\calS},\quad
+	\mathbf{R}^\pi = (r(s,\pi(s)))_{s\in\calS},
+	\quad
+	\mathbf{V} = (V(s))_{s\in\calS}
+\]
+the Bellman equation becomes the following linear system in $\mathbf{V}$:
+\begin{equation}\label{eq:BellmanEqnMatrixVector}
+	(I - \gamma\mathbf{P}^\pi)\mathbf{V} =
+	\mathbf{R}^\pi
+\end{equation}
 
 
 \subsection{The optimal value function}\label{sec:OptimalValueFunc}
@@ -131,6 +149,7 @@ Then, we have that the optimal value function satisfies the equation
 \[
 \calT^* V^* = V^*
 \]
+The Bellman optimal operator $\calT^*$ has the same properties as the Bellman operator $\calT^\pi$.
 
 
 \section{The $Q$-function}
@@ -314,6 +333,17 @@ To decide when to stop, we can use a set number of iterations, or use a $\epsilo
 
 
 Policy iteration can also be performed for other improvement algorithms. For instance, \textbf{$\boldsymbol\epsilon$-greedy improvement} performs greedy updates at each state probabilistically, taking the greedy with probability $1-\epsilon$ and otherwise taking a random action.
+
+In practice, the value function evaluation step can be done in two sub-steps:
+\begin{enumerate}
+	\item evaluate $V^\pi$ using the Bellman equation, in matrix form $(I-\gamma\mathbf{P}^\pi)\mathbf{V}^\pi = \mathbf{R}^\pi$
+	\item compute $Q^\pi(s,a) = r(s,a) + \gamma \sum_{s'} p(s,a,s')V^\pi(s')$ or in matrix form
+	\[
+		\mathbf{Q}^\pi_{\cdot, a} = \mathbf{R}^a + \mathbf{P}^a \mathbf{V}^\pi
+	\]
+	where $\mathbf{Q}^\pi = (Q^\pi(s,a))_{s,a}$, $\mathbf{R}^a = (r(s,a))_s$, $\mathbf{P}^a = (p(s,a,s'))_{s,s'}$.
+\end{enumerate}
+
 
 
 
