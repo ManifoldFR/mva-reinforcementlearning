@@ -135,7 +135,7 @@ The idea is to store the transitions $e_t = (s_t, a_t, r_t, s_{t+1})$ we observe
 \begin{algorithm}
 \caption{Experience replay (episodic)}
 \For{$i=1,\ldots,n$}{
-	\Repeat{until termination}{
+	\Repeat{termination}{
 		Take action $a_{t,i}$\;
 		Get reward, next state $(r_{t,i}, s_{t+1,i})$\;
 		Store the transition $e_{t,i} = (s_{t,i},a_{t,i},r_{t,i},s_{t+1,i})$ in buffer $\mathcal{D}$\;
@@ -172,7 +172,7 @@ This leads to the following algorithm:
 \KwIn{Initial parameters $\theta$, $\bar{\theta}$, target update interval $C$}
 \For{$i=1,\ldots,n$}{
 	Set initial state $s_{0,i}$\;
-	\Repeat{until termination}{
+	\Repeat{termination}{
 		Take action $a_{t,i}$\;
 		Get reward, next state $(r_{t,i}, s_{t+1,i})$\;
 		Store the transition $e_{t,i} = (s_{t,i},a_{t,i},r_{t,i},s_{t+1,i})$ in buffer $\mathcal{D}$\;

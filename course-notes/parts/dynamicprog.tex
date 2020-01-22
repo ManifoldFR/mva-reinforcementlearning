@@ -302,6 +302,16 @@ It can then be shown that $V^{\pi'} \geq V^{\pi}$, and that improvements stop if
 
 To decide when to stop, we can use a set number of iterations, or use a $\epsilon$-convergence criterion as suggested before for value iteration.
 
+\begin{algorithm}\label{algo:PolicyIteration}
+	\caption{Policy iteration}
+	\KwIn{Initial stationary policy $\pi_0$}
+	\ForEach{$k=1,\ldots,K$}{
+		Compute the value function $Q^{\pi_k}$\tcp*{using the Bellman eq.}
+		Define $\pi_{k+1}(s) \in \argmax_{a\in\calA} Q^{\pi_k}(s,a)$\;
+	}
+	\Return Policy $\pi_K$\;
+\end{algorithm}
+
 
 Policy iteration can also be performed for other improvement algorithms. For instance, \textbf{$\boldsymbol\epsilon$-greedy improvement} performs greedy updates at each state probabilistically, taking the greedy with probability $1-\epsilon$ and otherwise taking a random action.
 
@@ -395,7 +405,7 @@ The $\TD(0)$ updates are performed as
 \begin{remark}
 	Introducing the \textbf{bootstrapped return} of the trajectory
 	\[
-		G_t = r_t + \widehat{V}^\pi(s_t),
+		G_t = r_t + \gamma\widehat{V}^\pi(s_{t+1}),
 	\]
 	we can rewrite the update as
 	\[

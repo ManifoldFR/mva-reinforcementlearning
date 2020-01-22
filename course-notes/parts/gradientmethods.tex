@@ -164,7 +164,7 @@ It can be shown that the ``best" baseline in terms of variance reduction is actu
 b^*(s_t) = \EE_{\pi_\theta}\left[\sum_{t'=t}^T \gamma^{t'-t} r_{t'} \scalemid s_t \right]
 = V^\pi(s_t)
 \]
-\ldots which we are already trying to approximate. This suggests that we do some kind of \textbf{bootstrapping}. The approximate policy evaluation ideas from the previous \cref{chap:ApproxRL} will come in handy.
+\ldots which we are already trying to approximate. This suggests that we do some kind of \textbf{bootstrapping}. The approximate policy evaluation ideas from the previous \cref{chap:approxRL} will come in handy.
 
 The obvious first idea is nonparametric Monte Carlo estimation:
 \[
@@ -227,7 +227,7 @@ As before (see \cref{rmk:PolicyGradPseudoLoss}), this algorithm can be implement
 
 \paragraph{The idea} The enhanced REINFORCE algorithm builds estimates of the value function to compute the policy gradient: this Monte Carlo method is computationally expensive, and may still lead to high variance. To combat this, it might be a good idea to \textit{learn} from the Monte Carlo estimates in a way that gives a consistent estimate that follows the policy gradient updates.
 
-To achieve this, the class of \textbf{\bluefont actor-critic methods} introduces a second search space for approximation of the state(-action) value function and uses \textbf{bootstrapped temporal-difference estimates} for the returns $G_t$, by taking inspiration from TD policy evaluation (see \cref{chap:ApproxRL}). The supervised baseline of \cref{sec:REINFORCEparametricBaseline} was already a first step towards this, but this time we actually use the value estimate for policy evaluation and not only for variance reduction. The subtle difference is further explained in \cite[chap.\ 13.5]{Sutton1998}.
+To achieve this, the class of \textbf{\bluefont actor-critic methods} introduces a second search space for approximation of the state(-action) value function and uses \textbf{bootstrapped temporal-difference estimates} for the returns $G_t$, by taking inspiration from TD policy evaluation (see \cref{chap:approxRL}). The supervised baseline of \cref{sec:REINFORCEparametricBaseline} was already a first step towards this, but this time we actually use the value estimate for policy evaluation and not only for variance reduction. The subtle difference is further explained in \cite[chap.\ 13.5]{Sutton1998}.
 
 \subsection{Actor-Critic}
 
@@ -338,6 +338,9 @@ This can be easily generalized to using more rewards for bootstrapping the retur
 	{\redfont G_{t:t+n}}
 	= \sum_{k=0}^{n-1}\gamma^k r_{t+k} + \gamma^n \widehat{v}_\nu(s_{t+n})
 \]
+with a corresponding $\TD(n)$ temporal-difference error $\delta_t^{(n)} = {\redfont G_{t:t+n}} - \widehat{v}_\nu(s_{t})$.
+
+The A2C framework can be adapted to $\TD(\lambda)$ errors in a similar way.
 
 
 \paragraph{Batch actor-critic} In batch algorithms, we switch out episodic simulation with epochs of simulation-and-reset batches, where we simulate trajectories (and reset them at terminal states) until a fixed number $B$ of updates have been done.
@@ -385,37 +388,42 @@ for $i=0,\ldots,B-2$ and $G_{B-1} = r_{B-1} + \gamma v_B$. The $\TD(0)$ errors a
 
 \subsection{Surrogate loss, locally monotone optimization}
 
-Given a policy $\pi$, we want to use the past samples to get to a better policy $\pi'$. However, there is no guarantee we can trust the behavior in these samples.
+Given a policy $\pi$, we want to use the past samples to get to a better policy $\pi'$. However, there is no guarantee we can trust the behavior in these samples: we can end up stuck in a cycle of states, overshoot by following good-looking trajectories too optimistically, so on and so forth.
 
-We define the \textbf{\bluefont surrogate loss}
+We define the \textbf{\bluefont surrogate objective}
 \begin{equation}
-	L_\pi(\pi') = J(\pi) + \sum_{s\in\calS} d^\pi(s) \sum_{a\in\calA} \pi'(s,a)	A^\pi(s,a)
+	L_\pi(\pi') =
+	\EE_{s\sim d^\pi}\EE_{a\sim \pi}\left[
+	\frac{\pi'(s,a)}{\pi(s,a)}A^\pi(s,a)
+	\right]
+	= \sum_{s\in\calS} d^\pi(s) \sum_{a\in\calA} \pi'(s,a)	A^\pi(s,a)
 \end{equation}
 
-The gradient of $L_\pi(\pi_\theta)$ wrt $\theta$ is equal to the policy gradient \eqref{eq:PolicyGradient}. $L_\pi$ is a local approximation of the policy performance $J$ in the neighborhood of $\pi$.
+The gradient of $L_\pi(\pi_\theta)$ wrt $\theta$ is equal to the policy gradient \eqref{eq:PolicyGradient}. $L_\pi$ is a local approximation of the policy performance $J(\pi') - J(\pi)$ in the neighborhood of $\pi$.
+
+In practice the advantage function $A^\pi(s,a)$ will be approximated, using a $\TD(\lambda)$ error for instance.
 
 We can maximize a lower bound on $L_\pi$ which is still a local approximation of $J$ using the total variation:
-
 \paragraph{Policy improvement scheme} Given the current policy $\pi_k$, we get the next one by solving
 \[
-	\max_{\pi'} L_{\pi_k}(\pi') - {\redfont C}
+	\pi_{k+1} \in\argmax_{\pi'} L_{\pi_k}(\pi') - {\redfont C}
 	\EE_{s\sim d^{\pi_k}}\left[
-	D_{\mathrm{TV}}(\pi' \| \pi_k)[s]
+	D_{\mathrm{TV}}(\pi'(s) \| \pi_k(s))
 	\right]
 \]
 where ${\redfont C} > 0$ is a constant, and we search $\pi'$ in our search space (for instance, parametric). The maximum we get is positive and satisfies
 \[
-	J(\pi') - J(\pi) \geq
+	J(\pi') - J(\pi_k) \geq
 	\max_{\pi'} \left\{ L_{\pi_k}(\pi') - {\redfont C}
 	\EE_{s\sim d^{\pi_k}}\left[
-	D_{\mathrm{TV}}(\pi' \| \pi_k)[s]
+	D_{\mathrm{TV}}(\pi'(s) \| \pi_k(s))
 	\right] \right\}
 	\geq 0
 \]
 
 The \textbf{\redfont maximization problem might be too difficult} due to how the total variation distance $D_\mathrm{TV}$ is defined. We can relax it by lower-bounding again, using Pinkser's inequality to see that
 \[
-	D_\mathrm{TV}(\pi'\|\pi) \leq \sqrt{2\mathrm{KL}(\pi'\|\pi)}.
+	D_\mathrm{TV}(\pi'(s)\|\pi(s)) \leq \sqrt{2\mathrm{KL}(\pi'(s)\|\pi(s))}.
 \]
 
 
@@ -427,19 +435,23 @@ This gradient is defined using the Fisher information metric $d_{\pi}:v \mapsto 
 \[
 	\nabla_\calM h(\pi_\theta) = F(\pi_\theta)^{-1}\nabla_\theta h(\pi_\theta)
 \]
+where $F(\pi)$ is the {\bfseries\bluefont Fisher Information Matrix (FIM)},
+\[
+	F(\pi) = \EE_{\tau\sim \pi}[\nabla\log p_\theta(\tau) \nabla\log p_\theta(\tau)^\intercal].
+\]
 
 The update step becomes
-\[
+\begin{equation}
 \begin{aligned}
-	\pi_{k+1} &= \argmax_{\pi'} L_{\pi_k}(\pi')  \\
-	& \suchthat \ \overline{\mathrm{KL}}(\pi'\|\pi) = \EE_{s\sim d^\pi}[\mathrm{KL}(\pi'\|\pi_k)] \leq \delta
+	&\pi_{k+1} = \argmax_{\pi'} L_{\pi_k}(\pi')  \\
+	& \suchthat \ \overline{\mathrm{KL}}(\pi'\|\pi) = \EE_{s\sim d^\pi}[\mathrm{KL}(\pi'(s)\|\pi_k(s))] \leq \delta
 \end{aligned}
-\]
-we solve this approximately by
+\end{equation}
+This constrained optimization problem is hard to solve, but it can (and in practice, should) be \textbf{approximated by a quadratically-constrained linear program}. The approximate update is:
 \[
 \begin{aligned}
-	\theta_{k+1} &= \argmax_\theta g^\intercal (\theta - \theta_k)  \\
-	& \suchthat \frac{1}{2}(\theta-\theta_k)^\intercal F(\pi_k) (\theta - \theta_k) \leq \delta
+	&\theta_{k+1} = \argmax_\theta g^\intercal (\theta - \theta_k)  \\
+	& \suchthat\  \frac{1}{2}(\theta-\theta_k)^\intercal F (\theta - \theta_k) \leq \delta
 \end{aligned}
 \]
 where $g = \nabla_\theta L_{\pi_k}(\pi_\theta)$ and $F$ is the Fisher information matrix. This is solved by
@@ -454,14 +466,38 @@ where $g = \nabla_\theta L_{\pi_k}(\pi_\theta)$ and $F$ is the Fisher informatio
 \end{itemize}
 
 
-\paragraph{Trust Region Policy Optimization (TRPO)} We actually enforce the KL constraint which might violated in the NPG updates, and force improvement of the surrogate loss (make it $>0$).
+\subsection{Trust Region Policy Optimization (TRPO)}
+
+We actually enforce the KL constraint which might violated in the NPG updates, and force improvement of the surrogate loss (make it $>0$).
 \begin{itemize}
-	\item[\textrightarrow] use \textbf{backtracking line search until the constraints $L_{\pi_k}(\pi') > 0$ and $\overline{\mathrm{KL}}(\pi'\|\pi_k) \leq \delta$ are satisfied}
+	\item[\textrightarrow] given the natural policy gradient direction $\Delta\theta_k$, \textbf{\boldmath use backtracking line search until the constraints $L_{\pi_k}(\pi') > 0$ and $\overline{\mathrm{KL}}(\pi'\|\pi_k) \leq \delta$ are satisfied}
 \end{itemize}
 
 
+\subsection{Proximal Policy Optimization (PPO) \parencite{schulman2017proximal}}
 
+In practice, we might want to actually avoid computing the natural policy gradient, and approximate the KL constraint. The gradient ascent step is approximated by
+\begin{equation}\label{eq:PPOupdate}
+	\theta_{k+1} =\argmax_\theta L_{\pi_{\theta_k}}(\pi_\theta) - \lambda_k \EE[\mathrm{KL}(\pi_\theta\|\pi_{\theta_k})]
+\end{equation}
+We can see this is \textbf{not} constrained: instead the KL term is a penalization, with adaptive regularization $(\lambda_k)$ updated as
+\[
+	\lambda_{k+1} = \begin{cases}
+	2\lambda_k &\mbox{if } \EE[\KL(\pi_\theta\|\pi_{\theta_k})] \geq 3\delta/2  \\
+	\lambda_k/2 &\mbox{if }\EE[\KL(\pi_\theta\|\pi_{\theta_k})] \leq 2\delta/3  \\
+	\lambda_k &\mbox{otherwise}
+	\end{cases}
+\]
 
-
+\textcite{schulman2017proximal} show that the adaptive penalization is insufficient and introduce a clipped surrogate function. Denoting the ratio $\rho(\pi',s,a) = \frac{\pi'(s,a)}{\pi_{\theta_k}(s,a)}$, we have surrogate
+\[
+	L_{\theta_k}(\pi') = \EE_s\EE_{a\sim\pi} [\rho(\pi',s,a)A^\pi(s,a)]
+\]
+The clipped surrogate is
+\begin{equation}
+	L^\mathrm{clip}(\pi') = \EE_s\EE_{a\sim\pi}
+	\left[\min(\rho(\pi',s,a)A^\pi(s,a), \mathrm{clip}_{[1-\epsilon,1+\epsilon]}(\rho(\pi's,a))A^\pi(s,a))
+	\right]
+\end{equation}
 
 \end{document}
