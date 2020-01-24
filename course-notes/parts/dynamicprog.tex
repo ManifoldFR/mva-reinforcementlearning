@@ -359,7 +359,7 @@ The number of iterations required is bounded as
 	\right)
 \]
 
-\paragraph{{\bluefont Pros}/{\redfont Cons}} Policy evaluation converges in a small number of iterations \textbf{but} requires policy evaluation (might be expensive!)
+\paragraph{{\bluefont Pros}/{\redfont Cons}} Policy iteration converges in a small number of iterations \textbf{but} requires policy evaluation (might be expensive!)
 
 
 
@@ -559,7 +559,7 @@ We recall the basic property \eqref{eq:QValueToOptimalPolicy} of the optimal pol
 		\sum_{a'\in\calA} \exp(Q(s,a')/\tau)
 	}
 \]
-After observing a transition $(s_t, a_t, r_t, s_{t+1})$, we take the next action $a_{t+1}$ according to $\pi_Q$ and update using the $\TD(1)$ scheme: compute the temporal difference of the $Q$-function
+After observing a transition $(s_t, a_t, r_t, s_{t+1})$, we take the next action $a_{t+1}$ according to $\pi_Q$ and update using the $\TD(0)$ scheme: compute the temporal difference of the $Q$-function
 \begin{equation}\label{eq:QfuncTDerror}
 	{\bluefont \delta_t} = r_t + \gamma \widehat{Q}(s_{t+1}, a_{t+1}) - \widehat{Q}(s_t, a_t)
 \end{equation}
