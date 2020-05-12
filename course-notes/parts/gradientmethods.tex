@@ -466,21 +466,28 @@ where $g = \nabla_\theta L_{\pi_k}(\pi_\theta)$ and $F$ is the Fisher informatio
 \end{itemize}
 
 
-\subsection{Trust Region Policy Optimization (TRPO)}
+\subsection{Trust Region Policy Optimization (TRPO) \cite{schulman2015trust}}
 
-We actually enforce the KL constraint which might violated in the NPG updates, and force improvement of the surrogate loss (make it $>0$).
+\textcite{schulman2015trust} KL constraint which might violated in the NPG updates, and force improvement of the surrogate loss (make it $>0$).
 \begin{itemize}
 	\item[\textrightarrow] given the natural policy gradient direction $\Delta\theta_k$, \textbf{\boldmath use backtracking line search until the constraints $L_{\pi_k}(\pi') > 0$ and $\overline{\mathrm{KL}}(\pi'\|\pi_k) \leq \delta$ are satisfied}
 \end{itemize}
+This constrained optimization update is still computationally expensive, thus in practice conjugate gradient iterations are still used.
+
+\paragraph{Combining with Actor-Critic} This iterative update scheme can be, of course, combined with an actor-critic approach for learning an approximator of the advantage, such as A2C where advantage is approached as $\widehat{A}_t = \widehat{G}_t - \widehat{v}_\nu(s_t)$. This is what is done in the reference implementation\footnote{\url{https://github.com/openai/baselines/tree/master/baselines/trpo_mpi}}.
 
 
 \subsection{Proximal Policy Optimization (PPO) \parencite{schulman2017proximal}}
 
-In practice, we might want to actually avoid computing the natural policy gradient, and approximate the KL constraint. The gradient ascent step is approximated by
-\begin{equation}\label{eq:PPOupdate}
+In practice, we might want to actually avoid computing the natural policy gradient, even using the conjugate gradient algorithm of TRPO. 
+
+\textcite{schulman2017proximal} introduce the \textbf{Proximal Policy Optimization} family of algorithms, where the KL constraint is approximated by modifying the unconstrained objective.
+
+\paragraph{Adaptive KL} One first variant of PPO is a natural modification of TRPO, where the KL constraint is turned into a penalization term. The gradient update step is given by:
+\begin{equation}\label{eq:PPOKLupdate}
 	\theta_{k+1} =\argmax_\theta L_{\pi_{\theta_k}}(\pi_\theta) - \lambda_k \EE[\mathrm{KL}(\pi_\theta\|\pi_{\theta_k})]
 \end{equation}
-We can see this is \textbf{not} constrained: instead the KL term is a penalization, with adaptive regularization $(\lambda_k)$ updated as
+\citeauthor{schulman2017proximal} show that a constant regularization strength $\lambda_k$ to enforce the KL constraint well, and instead use an adaptive strength factor, updated as
 \[
 	\lambda_{k+1} = \begin{cases}
 	2\lambda_k &\mbox{if } \EE[\KL(\pi_\theta\|\pi_{\theta_k})] \geq 3\delta/2  \\
@@ -489,15 +496,21 @@ We can see this is \textbf{not} constrained: instead the KL term is a penalizati
 	\end{cases}
 \]
 
-\textcite{schulman2017proximal} show that the adaptive penalization is insufficient and introduce a clipped surrogate function. Denoting the ratio $\rho(\pi',s,a) = \frac{\pi'(s,a)}{\pi_{\theta_k}(s,a)}$, we have surrogate
+\paragraph{Clipped surrogate} \textcite{schulman2017proximal} propose an alternative to the adaptive penalization, introducing a \textbf{clipped surrogate} function. Denoting the ratio $\rho(\pi',s,a) = \frac{\pi'(s,a)}{\pi_{\theta_k}(s,a)}$, we have surrogate
 \[
 	L_{\theta_k}(\pi') = \EE_s\EE_{a\sim\pi} [\rho(\pi',s,a)A^\pi(s,a)]
 \]
 The clipped surrogate is
 \begin{equation}
 	L^\mathrm{clip}(\pi') = \EE_s\EE_{a\sim\pi}
-	\left[\min(\rho(\pi',s,a)A^\pi(s,a), \mathrm{clip}_{[1-\epsilon,1+\epsilon]}(\rho(\pi's,a))A^\pi(s,a))
+	\left[\min(\rho(\pi',s,a)A^\pi(s,a), \mathrm{clamp}(\rho(\pi's,a))A^\pi(s,a), 1-\epsilon, 1+\epsilon)
 	\right]
 \end{equation}
+
+\paragraph{Actor-Critic} Like TRPO, most implementations and uses of this algorithm, inluding its reference implementation\footnotemark[1]{} and the experimental results of the paper~\cite{schulman2017proximal} combine it with an actor-critic approach.
+
+
+\paragraph{Performance analysis, hyperparameter tuning} PPO is still used as a base algorithm for many tasks, and deemed to be very performant \textit{if tuned accordingly} (otherwise, PPO is notoriously unstable). For instance, the reference implementation\footnotemark[1]{} of \citeauthor{schulman2015trust} uses several code-level performance optimizations (such as learning rate annealing or reward scaling) that are not mentioned in the initial paper. A recent paper by \textcite{ilyas2018deep} dives into the practical impact of these additions and provides several insights into the performance and stability of PPO.
+
 
 \end{document}
